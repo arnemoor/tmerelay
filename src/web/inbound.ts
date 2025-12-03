@@ -166,7 +166,9 @@ export async function monitorWebInbox(options: {
       const timestamp = msg.messageTimestamp
         ? Number(msg.messageTimestamp) * 1000
         : undefined;
-      const unwrapped = unwrapMessage(msg.message as proto.IMessage | undefined);
+      const unwrapped = unwrapMessage(
+        msg.message as proto.IMessage | undefined,
+      );
       const mentionedJids =
         unwrapped?.extendedTextMessage?.contextInfo?.mentionedJid ??
         unwrapped?.extendedTextMessage?.contextInfo?.quotedMessage
@@ -303,7 +305,9 @@ export async function monitorWebInbox(options: {
   } as const;
 }
 
-function unwrapMessage(message: proto.IMessage | undefined): proto.IMessage | undefined {
+function unwrapMessage(
+  message: proto.IMessage | undefined,
+): proto.IMessage | undefined {
   if (!message) return undefined;
   if (message.ephemeralMessage?.message) {
     return unwrapMessage(message.ephemeralMessage.message as proto.IMessage);
