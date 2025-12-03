@@ -11,12 +11,12 @@ import {
   saveSessionStore,
 } from "../config/sessions.js";
 import { info, isVerbose, logVerbose } from "../globals.js";
+import { triggerWarelayRestart } from "../infra/restart.js";
 import { ensureMediaHosted } from "../media/host.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import type { TwilioRequester } from "../twilio/types.js";
 import { sendTypingIndicator } from "../twilio/typing.js";
-import { triggerWarelayRestart } from "../infra/restart.js";
 import { chunkText } from "./chunk.js";
 import { runCommandReply } from "./command-reply.js";
 import {

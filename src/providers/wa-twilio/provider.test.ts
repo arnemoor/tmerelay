@@ -3,8 +3,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TwilioProviderConfig } from "../base/index.js";
 import { listRecentMessages } from "../../twilio/messages.js";
+import type { TwilioProviderConfig } from "../base/index.js";
 import { capabilities } from "./capabilities.js";
 import { TwilioProvider } from "./provider.js";
 

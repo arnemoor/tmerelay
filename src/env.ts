@@ -12,6 +12,10 @@ export type EnvConfig = {
   whatsappFrom: string;
   whatsappSenderSid?: string;
   auth: AuthMode;
+  telegram?: {
+    apiId: number;
+    apiHash: string;
+  };
 };
 
 const EnvSchema = z
@@ -22,6 +26,8 @@ const EnvSchema = z
     TWILIO_AUTH_TOKEN: z.string().optional(),
     TWILIO_API_KEY: z.string().optional(),
     TWILIO_API_SECRET: z.string().optional(),
+    TELEGRAM_API_ID: z.string().optional(),
+    TELEGRAM_API_HASH: z.string().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.TWILIO_API_KEY && !val.TWILIO_API_SECRET) {
@@ -46,6 +52,16 @@ const EnvSchema = z
           "Provide TWILIO_AUTH_TOKEN or both TWILIO_API_KEY and TWILIO_API_SECRET",
       });
     }
+    if (
+      (val.TELEGRAM_API_ID && !val.TELEGRAM_API_HASH) ||
+      (!val.TELEGRAM_API_ID && val.TELEGRAM_API_HASH)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Both TELEGRAM_API_ID and TELEGRAM_API_HASH must be set together",
+      });
+    }
   });
 
 export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
@@ -66,6 +82,8 @@ export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
     TWILIO_AUTH_TOKEN: authToken,
     TWILIO_API_KEY: apiKey,
     TWILIO_API_SECRET: apiSecret,
+    TELEGRAM_API_ID: telegramApiId,
+    TELEGRAM_API_HASH: telegramApiHash,
   } = parsed.data;
 
   let auth: AuthMode;
@@ -79,12 +97,21 @@ export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
     throw new Error("unreachable");
   }
 
-  return {
+  const config: EnvConfig = {
     accountSid,
     whatsappFrom,
     whatsappSenderSid,
     auth,
   };
+
+  if (telegramApiId && telegramApiHash) {
+    config.telegram = {
+      apiId: Number.parseInt(telegramApiId, 10),
+      apiHash: telegramApiHash,
+    };
+  }
+
+  return config;
 }
 
 export function ensureTwilioEnv(runtime: RuntimeEnv = defaultRuntime) {

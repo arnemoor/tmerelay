@@ -107,26 +107,68 @@ export function buildProgram() {
 
   program
     .command("login")
-    .description("Link your personal WhatsApp via QR (web provider)")
+    .description(
+      "Link your personal WhatsApp via QR (web provider) or Telegram account",
+    )
+    .option("--provider <provider>", "Provider: wa-web | telegram", "wa-web")
     .option("--verbose", "Verbose connection logs", false)
     .action(async (opts) => {
       setVerbose(Boolean(opts.verbose));
-      try {
-        await loginWeb(Boolean(opts.verbose));
-      } catch (err) {
-        defaultRuntime.error(danger(`Web login failed: ${String(err)}`));
+      const provider = normalizeProvider(opts.provider ?? "wa-web");
+
+      if (provider === "telegram") {
+        const { loginTelegram } = await import("../telegram/login.js");
+        try {
+          await loginTelegram(Boolean(opts.verbose));
+        } catch (err) {
+          defaultRuntime.error(danger(`Telegram login failed: ${String(err)}`));
+          defaultRuntime.exit(1);
+        }
+      } else if (provider === "wa-web") {
+        try {
+          await loginWeb(Boolean(opts.verbose));
+        } catch (err) {
+          defaultRuntime.error(danger(`Web login failed: ${String(err)}`));
+          defaultRuntime.exit(1);
+        }
+      } else {
+        defaultRuntime.error(
+          "Login is only supported for wa-web and telegram providers",
+        );
         defaultRuntime.exit(1);
       }
     });
 
   program
     .command("logout")
-    .description("Clear cached WhatsApp Web credentials")
-    .action(async () => {
-      try {
-        await logoutWeb(defaultRuntime);
-      } catch (err) {
-        defaultRuntime.error(danger(`Logout failed: ${String(err)}`));
+    .description("Clear cached WhatsApp Web or Telegram credentials")
+    .option("--provider <provider>", "Provider: wa-web | telegram", "wa-web")
+    .option("--verbose", "Show detailed logs", false)
+    .action(async (opts) => {
+      setVerbose(Boolean(opts.verbose));
+      const provider = normalizeProvider(opts.provider ?? "wa-web");
+
+      if (provider === "telegram") {
+        const { logoutTelegram } = await import("../telegram/login.js");
+        try {
+          await logoutTelegram(Boolean(opts.verbose), defaultRuntime);
+        } catch (err) {
+          defaultRuntime.error(
+            danger(`Telegram logout failed: ${String(err)}`),
+          );
+          defaultRuntime.exit(1);
+        }
+      } else if (provider === "wa-web") {
+        try {
+          await logoutWeb(defaultRuntime);
+        } catch (err) {
+          defaultRuntime.error(danger(`Logout failed: ${String(err)}`));
+          defaultRuntime.exit(1);
+        }
+      } else {
+        defaultRuntime.error(
+          "Logout is only supported for wa-web and telegram providers",
+        );
         defaultRuntime.exit(1);
       }
     });
@@ -438,6 +480,23 @@ Examples:
       }
 
       const provider = await pickProvider(normalized as Provider | "auto");
+
+      if (provider === "telegram") {
+        try {
+          const { monitorTelegramProvider } = await import(
+            "../telegram/monitor.js"
+          );
+          await monitorTelegramProvider(Boolean(opts.verbose), defaultRuntime);
+          return;
+        } catch (err) {
+          defaultRuntime.error(
+            danger(
+              `Telegram relay failed: ${String(err)}. Re-authenticate with 'warelay login --provider telegram'.`,
+            ),
+          );
+          defaultRuntime.exit(1);
+        }
+      }
 
       if (provider === "wa-web") {
         logWebSelfId(defaultRuntime, true);

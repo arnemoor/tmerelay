@@ -16,8 +16,8 @@ import {
   formatToolAggregate,
   shortenMeta,
   shortenPath,
-  TOOL_RESULT_FLUSH_COUNT,
   TOOL_RESULT_DEBOUNCE_MS,
+  TOOL_RESULT_FLUSH_COUNT,
 } from "./tool-meta.js";
 import type { ReplyPayload } from "./types.js";
 

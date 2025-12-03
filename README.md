@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-Send, receive, auto-reply, and inspect WhatsApp messages over **WhatsApp Web** (personal account) or **WhatsApp Twilio** (business account), with **Telegram** support planned. Ships with a one-command webhook setup (Tailscale Funnel + Twilio callback) and a configurable auto-reply engine (plain text or command/Claude driven).
+Send, receive, auto-reply, and inspect WhatsApp and Telegram messages. Supports **WhatsApp Web** (personal account), **WhatsApp Twilio** (business account), and **Telegram** (personal MTProto). Ships with a one-command webhook setup (Tailscale Funnel + Twilio callback) and a configurable auto-reply engine (plain text or command/Claude driven).
 
 ## Provider Overview
 
@@ -18,7 +18,7 @@ Send, receive, auto-reply, and inspect WhatsApp messages over **WhatsApp Web** (
 |----------|----------|----------|--------------|----------|
 | **WhatsApp Web** | `wa-web` | WhatsApp | Personal (QR login) | Quick personal automation, no Twilio setup |
 | **WhatsApp Twilio** | `wa-twilio` | WhatsApp | Business (Twilio API) | Delivery tracking, webhooks, production use |
-| **Telegram** | `telegram` | Telegram | Personal (phone+2FA) | Planned - dual-platform automation |
+| **Telegram** | `telegram` | Telegram | Personal (phone+2FA) | Different audience, 2GB media, MTProto |
 
 **Legacy aliases:** `web` and `twilio` still work for backward compatibility but are deprecated.
 
@@ -43,10 +43,17 @@ Install from npm (global): `npm install -g warelay` (Node 22+). Then choose **on
    - Polling (no ingress): `warelay relay --provider wa-twilio --interval 5 --lookback 10`
    - Webhook + public URL via Tailscale Funnel: `warelay webhook --ingress tailscale --port 42873 --path /webhook/whatsapp --verbose`
 
+**C) Telegram (personal account automation)**
+1. Get API credentials from https://my.telegram.org/apps (API ID + API Hash).
+2. Add to `.env`: `TELEGRAM_API_ID=12345678` and `TELEGRAM_API_HASH=your_hash`.
+3. Login: `warelay login --provider telegram` (phone number + SMS code + 2FA password if enabled).
+4. Send a message: `warelay send --provider telegram --to @username --message "Hi from warelay"`.
+5. Start auto-reply: `warelay relay --provider telegram --verbose`.
+
 > Already developing locally? You can still run `pnpm install` and `pnpm warelay ...` from the repo, but end users only need the npm package.
 
 ## Main Features
-- **Two WhatsApp providers:** WhatsApp Twilio (`wa-twilio`) for reliable delivery + status; WhatsApp Web (`wa-web`) for quick personal sends/receives via QR login.
+- **Three providers:** WhatsApp Twilio (`wa-twilio`) for reliable delivery + status; WhatsApp Web (`wa-web`) for quick personal sends/receives via QR login; Telegram (`telegram`) for MTProto personal automation.
 - **Auto-replies:** Static templates or external commands (Claude-aware), with per-sender or global sessions and `/new` resets.
 - **Group chats (WhatsApp Web):** Replies only when mentioned, keep group sessions separate from DMs, inject recent group history, and suffix the triggering sender (`[from: Name (+E164)]`) so your agent knows who spoke.
 - Claude setup guide: see `docs/claude-config.md` for the exact Claude CLI configuration we support.
@@ -64,11 +71,13 @@ Install from npm (global): `npm install -g warelay` (Node 22+). Then choose **on
 | `warelay relay:heartbeat` | Run relay with an immediate heartbeat (no tmux) | `--provider <auto\|wa-web>` `--verbose` |
 | `warelay relay:heartbeat:tmux` | Start relay in tmux and fire a heartbeat on start (WhatsApp Web) | _no flags_ |
 | `warelay webhook` | Run inbound webhook (`ingress=tailscale` updates Twilio; `none` is local-only) | `--ingress tailscale\|none` `--port <port>` `--path <path>` `--reply <text>` `--verbose` `--yes` `--dry-run` |
-| `warelay login` | Link personal WhatsApp Web via QR | `--verbose` |
+| `warelay login` | Link personal WhatsApp Web (QR) or Telegram (phone+2FA) | `--provider wa-web\|telegram` `--verbose` |
+| `warelay logout` | Remove saved session for provider | `--provider wa-web\|telegram` `--verbose` |
 
 ### Sending media
 - WhatsApp Twilio: `warelay send --provider wa-twilio --to +1... --message "Hi" --media ./pic.jpg --serve-media` (needs `warelay webhook --ingress tailscale` or `--serve-media` to auto-host via Funnel; max 5 MB per file because of the built-in host).
 - WhatsApp Web: `warelay send --provider wa-web --media ./pic.jpg --message "Hi"` (local path or URL; no hosting needed). WhatsApp Web auto-detects media kind: images (≤6 MB), audio/voice or video (≤16 MB), other docs (≤100 MB). Images are resized to max 2048px and JPEG recompressed when the cap would be exceeded.
+- Telegram: `warelay send --provider telegram --to @username --message "Hi" --media ./pic.jpg` (local path or URL; supports up to 2 GB files). Media is automatically categorized (photo, video, audio, document).
 - Auto-replies can attach `mediaUrl` in `~/.warelay/warelay.json` (used alongside `text` when present). WhatsApp Web auto-replies honor `inbound.reply.mediaMaxMb` (default 5 MB) as a post-compression target but will never exceed the provider hard limits above.
 
 ### Voice notes (optional transcription)
@@ -100,7 +109,8 @@ Install from npm (global): `npm install -g warelay` (Node 22+). Then choose **on
 ## Providers
 - **WhatsApp Twilio (`--provider wa-twilio`, default):** needs `.env` creds + WhatsApp-enabled number; supports delivery tracking, polling, webhooks, and auto-reply typing indicators.
 - **WhatsApp Web (`--provider wa-web`):** uses your personal WhatsApp via Baileys; supports send/receive + auto-reply, but no delivery-status wait; cache lives in `~/.warelay/credentials/` (rerun `login` if logged out). If the WhatsApp Web socket closes, the relay exits instead of pivoting to WhatsApp Twilio.
-- **Auto-select (`relay` only):** `--provider auto` picks WhatsApp Web when a cache exists at start, otherwise WhatsApp Twilio polling. It will not swap from WhatsApp Web to WhatsApp Twilio mid-run if the WhatsApp Web session drops.
+- **Telegram (`--provider telegram`):** uses your personal Telegram via GramJS (MTProto); supports send/receive + auto-reply with typing indicators, reactions, edits, and deletions; session stored at `~/.warelay/telegram/session/` (rerun `login --provider telegram` if logged out). Requires `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in `.env` (get from https://my.telegram.org/apps).
+- **Auto-select (`relay` only):** `--provider auto` picks WhatsApp Web when a cache exists at start, then Telegram if its session exists, otherwise WhatsApp Twilio polling. It will not swap providers mid-run if the session drops.
 
 **Legacy aliases:** `twilio` and `web` still work but are deprecated. Use `wa-twilio` and `wa-web` instead.
 
@@ -127,6 +137,8 @@ warelay supports running on the same phone number you message from—you chat wi
 | `TWILIO_API_SECRET` | Yes* | API secret paired with `TWILIO_API_KEY` |
 | `TWILIO_WHATSAPP_FROM` | Yes (WhatsApp Twilio provider) | WhatsApp-enabled sender, e.g. `whatsapp:+19995550123` |
 | `TWILIO_SENDER_SID` | Optional | Overrides auto-discovery of the sender SID |
+| `TELEGRAM_API_ID` | Yes (Telegram provider) | Telegram API ID from https://my.telegram.org/apps |
+| `TELEGRAM_API_HASH` | Yes (Telegram provider) | Telegram API Hash from https://my.telegram.org/apps |
 
 (*Provide either auth token OR api key/secret.)
 
@@ -292,4 +304,6 @@ warelay relay --provider wa-web --verbose
 **Config file:** No changes needed to `~/.warelay/warelay.json` - the config file does not reference provider names directly.
 
 **Provider selection priority:**
-- `auto` mode: WhatsApp Web > Telegram (planned) > WhatsApp Twilio
+- `auto` mode: WhatsApp Web > Telegram > WhatsApp Twilio
+
+For detailed Telegram setup and usage, see [`docs/telegram.md`](docs/telegram.md).

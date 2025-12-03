@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { TelegramProvider } from "../telegram/index.js";
 import type { TwilioProviderConfig, WebProviderConfig } from "./base/index.js";
 import { createInitializedProvider, createProvider } from "./factory.js";
 import { TwilioProvider } from "./wa-twilio/index.js";
@@ -21,10 +22,10 @@ describe("createProvider", () => {
     expect(provider.kind).toBe("wa-twilio");
   });
 
-  it("throws error for telegram provider (not yet implemented)", () => {
-    expect(() => createProvider("telegram")).toThrow(
-      "Telegram provider not yet implemented. Coming soon!",
-    );
+  it("creates telegram provider", () => {
+    const provider = createProvider("telegram");
+    expect(provider).toBeInstanceOf(TelegramProvider);
+    expect(provider.kind).toBe("telegram");
   });
 
   it("throws error for unknown provider kind", () => {
@@ -85,22 +86,30 @@ describe("createInitializedProvider", () => {
     const initializeSpy = vi.spyOn(WebProvider.prototype, "initialize");
     initializeSpy.mockRejectedValue(new Error("Init failed"));
 
-    await expect(
-      createInitializedProvider("wa-web", config),
-    ).rejects.toThrow("Init failed");
+    await expect(createInitializedProvider("wa-web", config)).rejects.toThrow(
+      "Init failed",
+    );
 
     initializeSpy.mockRestore();
   });
 
-  it("throws error for telegram provider", async () => {
+  it("creates and initializes telegram provider", async () => {
     const config = {
       kind: "telegram" as const,
       apiId: 12345,
       apiHash: "hash",
+      verbose: false,
     };
 
-    await expect(
-      createInitializedProvider("telegram", config),
-    ).rejects.toThrow("Telegram provider not yet implemented. Coming soon!");
+    // Mock the initialize method to avoid actual client creation
+    const initializeSpy = vi.spyOn(TelegramProvider.prototype, "initialize");
+    initializeSpy.mockResolvedValue(undefined);
+
+    const provider = await createInitializedProvider("telegram", config);
+
+    expect(provider).toBeInstanceOf(TelegramProvider);
+    expect(initializeSpy).toHaveBeenCalledWith(config);
+
+    initializeSpy.mockRestore();
   });
 });

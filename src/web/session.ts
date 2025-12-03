@@ -219,7 +219,15 @@ export function logWebSelfId(
 export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
   // Auto-select wa-web when logged in; otherwise fall back to wa-twilio.
   if (pref !== "auto") return pref;
+
+  // Priority: WhatsApp Web > Telegram > WhatsApp Twilio
   const hasWeb = await webAuthExists();
   if (hasWeb) return "wa-web";
+
+  // Check for Telegram session
+  const { telegramAuthExists } = await import("../telegram/session.js");
+  const hasTelegram = await telegramAuthExists();
+  if (hasTelegram) return "telegram";
+
   return "wa-twilio";
 }

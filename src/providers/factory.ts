@@ -4,6 +4,7 @@
  * Factory functions for creating and initializing messaging providers.
  */
 
+import { TelegramProvider } from "../telegram/index.js";
 import type { Provider, ProviderConfig, ProviderKind } from "./base/index.js";
 import { TwilioProvider } from "./wa-twilio/index.js";
 import { WebProvider } from "./wa-web/index.js";
@@ -24,7 +25,7 @@ export function createProvider(kind: ProviderKind): Provider {
     case "wa-twilio":
       return new TwilioProvider();
     case "telegram":
-      throw new Error("Telegram provider not yet implemented. Coming soon!");
+      return new TelegramProvider();
     default:
       throw new Error(`Unknown provider kind: ${kind}`);
   }
