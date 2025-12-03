@@ -9,7 +9,6 @@ export * from "./base/index.js";
 
 // Factory functions
 export * from "./factory.js";
-
+export { TwilioProvider } from "./wa-twilio/index.js";
 // Provider implementations
 export { WebProvider } from "./wa-web/index.js";
-export { TwilioProvider } from "./wa-twilio/index.js";

@@ -49,6 +49,10 @@ export type GroupChatConfig = {
   historyLimit?: number;
 };
 
+export type TelegramConfig = {
+  allowFrom?: string[]; // @username or user IDs
+};
+
 export type WarelayConfig = {
   logging?: LoggingConfig;
   inbound?: {
@@ -86,6 +90,7 @@ export type WarelayConfig = {
     };
   };
   web?: WebConfig;
+  telegram?: TelegramConfig;
 };
 
 export const CONFIG_PATH = path.join(os.homedir(), ".warelay", "warelay.json");
@@ -207,6 +212,11 @@ const WarelaySchema = z.object({
           maxAttempts: z.number().int().min(0).optional(),
         })
         .optional(),
+    })
+    .optional(),
+  telegram: z
+    .object({
+      allowFrom: z.array(z.string()).optional(),
     })
     .optional(),
 });

@@ -5,10 +5,10 @@
  * This is a wrapper only - it delegates to existing implementations in src/twilio/.
  */
 
-import { stripWhatsAppPrefix, withWhatsAppPrefix } from "../../utils.js";
 import { createClient } from "../../twilio/client.js";
-import { listRecentMessages } from "../../twilio/messages.js";
 import type { ListedMessage } from "../../twilio/messages.js";
+import { listRecentMessages } from "../../twilio/messages.js";
+import { stripWhatsAppPrefix, withWhatsAppPrefix } from "../../utils.js";
 import type {
   DeliveryStatus,
   MessageHandler,
@@ -53,9 +53,13 @@ export class TwilioProvider implements Provider {
     // Create Twilio client
     const auth =
       config.authToken != null
-        ? { authToken: config.authToken }
+        ? { accountSid: config.accountSid, authToken: config.authToken }
         : config.apiKey && config.apiSecret
-          ? { apiKey: config.apiKey, apiSecret: config.apiSecret }
+          ? {
+              accountSid: config.accountSid,
+              apiKey: config.apiKey,
+              apiSecret: config.apiSecret,
+            }
           : null;
 
     if (!auth) {

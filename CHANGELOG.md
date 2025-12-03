@@ -3,11 +3,27 @@
 ## [Unreleased] (will be 2.0.0)
 
 ### Breaking Changes
-- **Provider names renamed for clarity:** `web` → `wa-web`, `twilio` → `wa-twilio`, with new `telegram` provider name reserved for future Telegram support. This makes the platform (WhatsApp) explicit and prepares for multi-platform support. Legacy provider names (`web`, `twilio`) still work with deprecation warnings for backward compatibility. Users should update CLI commands, scripts, and documentation to use the new names.
+- **Provider names renamed for clarity:** `web` → `wa-web`, `twilio` → `wa-twilio`, with new `telegram` provider added. This makes the platform (WhatsApp) explicit and enables multi-platform support. Legacy provider names (`web`, `twilio`) still work with deprecation warnings for backward compatibility. Users should update CLI commands, scripts, and documentation to use the new names.
   - Migration: Replace `--provider web` with `--provider wa-web` and `--provider twilio` with `--provider wa-twilio` in all CLI invocations
-  - Auto-selection (`--provider auto`) logic unchanged: prefers `wa-web` when logged in, otherwise falls back to `wa-twilio`
+  - Auto-selection (`--provider auto`) now prioritizes: `wa-web` (if logged in) > `telegram` (if logged in) > `wa-twilio` (if configured)
   - All JSON output now uses new provider names
   - Error messages updated to reference new provider names
+
+### Major Features
+- **Telegram support (MTProto client):** Full integration with personal Telegram accounts via GramJS library, matching WhatsApp Web's personal automation model.
+  - Phone + SMS + 2FA authentication flow (`warelay login --provider telegram`)
+  - Send/receive text messages and media (up to 2 GB per file)
+  - Auto-reply with typing indicators, reactions, edits, and deletions
+  - Per-sender sessions with Claude/agent integration
+  - Session storage at `~/.warelay/telegram/session/`
+  - `allowFrom` whitelist security model (usernames, phone numbers, or user IDs)
+  - Get API credentials from https://my.telegram.org/apps
+  - See `docs/telegram.md` for comprehensive setup guide
+
+### Documentation
+- **README.md:** Updated provider table to include Telegram, added Telegram quick start section (C), updated media examples, updated environment variables table, and updated provider selection priority
+- **docs/telegram.md:** New comprehensive guide covering setup, CLI usage, features, security model, troubleshooting, configuration examples, comparisons, best practices, and migration paths
+- **.env.example:** Already updated with `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` examples
 
 ### Highlights
 - **Thinking directives & state:** `/t|/think|/thinking <level>` (aliases off|minimal|low|medium|high|max/highest). Inline applies to that message; directive-only message pins the level for the session; `/think:off` clears. Resolution: inline > session override > `inbound.reply.thinkingDefault` > off. Pi/Tau get `--thinking <level>` (except off); other agents append cue words (`think` → `think hard` → `think harder` → `ultrathink`). Heartbeat probe uses `HEARTBEAT /think:high`.

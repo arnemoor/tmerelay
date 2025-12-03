@@ -30,6 +30,74 @@ export async function sendCommand(
     throw new Error("Poll must be > 0 seconds");
   }
 
+  if (opts.provider === "telegram") {
+    if (opts.dryRun) {
+      runtime.log(
+        `[dry-run] would send via telegram -> ${opts.to}: ${opts.message}${opts.media ? ` (media ${opts.media})` : ""}`,
+      );
+      return;
+    }
+    if (waitSeconds !== 0) {
+      runtime.log(
+        info("Wait/poll are Twilio-only; ignored for provider=telegram."),
+      );
+    }
+
+    // Import provider factory
+    const { createInitializedProvider } = await import(
+      "../providers/factory.js"
+    );
+    const { readEnv } = await import("../env.js");
+    const env = readEnv(runtime);
+
+    if (!env.telegram?.apiId || !env.telegram?.apiHash) {
+      throw new Error(
+        "Telegram not configured. Set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env",
+      );
+    }
+
+    const config = {
+      kind: "telegram" as const,
+      apiId: env.telegram.apiId,
+      apiHash: env.telegram.apiHash,
+      verbose: false,
+    };
+
+    const provider = await createInitializedProvider("telegram", config);
+
+    try {
+      const result = await provider.send(opts.to, opts.message, {
+        media: opts.media
+          ? [{ type: "image" as const, url: opts.media }]
+          : undefined,
+      });
+
+      runtime.log(
+        success(`✅ Message sent via Telegram. ID: ${result.messageId}`),
+      );
+
+      if (opts.json) {
+        runtime.log(
+          JSON.stringify(
+            {
+              success: true,
+              messageId: result.messageId,
+              to: opts.to,
+              provider: "telegram",
+              status: result.status,
+              mediaUrl: opts.media ?? null,
+            },
+            null,
+            2,
+          ),
+        );
+      }
+    } finally {
+      await provider.disconnect();
+    }
+    return;
+  }
+
   if (opts.provider === "wa-web") {
     if (opts.dryRun) {
       runtime.log(
