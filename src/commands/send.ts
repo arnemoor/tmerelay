@@ -38,7 +38,9 @@ export async function sendCommand(
       return;
     }
     if (waitSeconds !== 0) {
-      runtime.log(info("Wait/poll are Twilio-only; ignored for provider=wa-web."));
+      runtime.log(
+        info("Wait/poll are Twilio-only; ignored for provider=wa-web."),
+      );
     }
 
     // Try to send via IPC to running relay first (avoids Signal session corruption)

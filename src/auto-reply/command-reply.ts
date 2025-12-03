@@ -345,7 +345,11 @@ export async function runCommandReply(
 
     // Tau (pi agent) needs --continue to reload prior messages when resuming.
     // Without it, pi starts from a blank state even though we pass the session file path.
-    if (agentKind === "pi" && !isNewSession && !sessionArgList.includes("--continue")) {
+    if (
+      agentKind === "pi" &&
+      !isNewSession &&
+      !sessionArgList.includes("--continue")
+    ) {
       sessionArgList.push("--continue");
     }
 
@@ -432,10 +436,7 @@ export async function runCommandReply(
       }
     };
     let lastStreamedAssistant: string | undefined;
-    const streamAssistant = (msg?: {
-      role?: string;
-      content?: unknown[];
-    }) => {
+    const streamAssistant = (msg?: { role?: string; content?: unknown[] }) => {
       if (!onPartialReply || msg?.role !== "assistant") return;
       const textBlocks = Array.isArray(msg.content)
         ? (msg.content as Array<{ type?: string; text?: string }>)
@@ -477,60 +478,59 @@ export async function runCommandReply(
           cwd: reply.cwd,
           prompt: body,
           timeoutMs,
-          onEvent:
-            onPartialReply
-              ? (line: string) => {
-                  try {
-                    const ev = JSON.parse(line) as {
-                      type?: string;
-                      message?: {
-                        role?: string;
-                        content?: unknown[];
-                        details?: Record<string, unknown>;
-                        arguments?: Record<string, unknown>;
-                      };
+          onEvent: onPartialReply
+            ? (line: string) => {
+                try {
+                  const ev = JSON.parse(line) as {
+                    type?: string;
+                    message?: {
+                      role?: string;
+                      content?: unknown[];
+                      details?: Record<string, unknown>;
+                      arguments?: Record<string, unknown>;
                     };
+                  };
+                  if (
+                    (ev.type === "message" || ev.type === "message_end") &&
+                    ev.message?.role === "tool_result" &&
+                    Array.isArray(ev.message.content)
+                  ) {
+                    const toolName = inferToolName(ev.message);
+                    const meta = inferToolMeta(ev.message);
                     if (
-                      (ev.type === "message" || ev.type === "message_end") &&
-                      ev.message?.role === "tool_result" &&
-                      Array.isArray(ev.message.content)
+                      pendingToolName &&
+                      toolName &&
+                      toolName !== pendingToolName
                     ) {
-                      const toolName = inferToolName(ev.message);
-                      const meta = inferToolMeta(ev.message);
-                      if (
-                        pendingToolName &&
-                        toolName &&
-                        toolName !== pendingToolName
-                      ) {
-                        flushPendingTool();
-                      }
-                      if (!pendingToolName) pendingToolName = toolName;
-                      if (meta) pendingMetas.push(meta);
-                      if (
-                        TOOL_RESULT_FLUSH_COUNT > 0 &&
-                        pendingMetas.length >= TOOL_RESULT_FLUSH_COUNT
-                      ) {
-                        flushPendingTool();
-                        return;
-                      }
-                      if (pendingTimer) clearTimeout(pendingTimer);
-                      pendingTimer = setTimeout(
-                        flushPendingTool,
-                        TOOL_RESULT_DEBOUNCE_MS,
-                      );
+                      flushPendingTool();
                     }
+                    if (!pendingToolName) pendingToolName = toolName;
+                    if (meta) pendingMetas.push(meta);
                     if (
-                      ev.type === "message_end" ||
-                      ev.type === "message_update" ||
-                      ev.type === "message"
+                      TOOL_RESULT_FLUSH_COUNT > 0 &&
+                      pendingMetas.length >= TOOL_RESULT_FLUSH_COUNT
                     ) {
-                      streamAssistant(ev.message);
+                      flushPendingTool();
+                      return;
                     }
-                  } catch {
-                    // ignore malformed lines
+                    if (pendingTimer) clearTimeout(pendingTimer);
+                    pendingTimer = setTimeout(
+                      flushPendingTool,
+                      TOOL_RESULT_DEBOUNCE_MS,
+                    );
                   }
+                  if (
+                    ev.type === "message_end" ||
+                    ev.type === "message_update" ||
+                    ev.type === "message"
+                  ) {
+                    streamAssistant(ev.message);
+                  }
+                } catch {
+                  // ignore malformed lines
                 }
-              : undefined,
+              }
+            : undefined,
         });
         flushPendingTool();
         return rpcResult;

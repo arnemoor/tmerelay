@@ -351,9 +351,7 @@ export async function getReplyFromConfig(
     typeof ctx.From === "string" &&
     (ctx.From.includes("@g.us") || ctx.From.startsWith("group:"));
   const abortKey = sessionKey ?? (from || undefined) ?? (to || undefined);
-  const rawBodyNormalized = (
-    sessionCtx.BodyStripped ?? sessionCtx.Body ?? ""
-  )
+  const rawBodyNormalized = (sessionCtx.BodyStripped ?? sessionCtx.Body ?? "")
     .trim()
     .toLowerCase();
 

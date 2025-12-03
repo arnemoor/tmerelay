@@ -154,7 +154,11 @@ export function buildProgram() {
       "20",
     )
     .option("-p, --poll <seconds>", "Polling interval while waiting", "2")
-    .option("--provider <provider>", "Provider: wa-twilio | wa-web | telegram", "wa-twilio")
+    .option(
+      "--provider <provider>",
+      "Provider: wa-twilio | wa-web | telegram",
+      "wa-twilio",
+    )
     .option("--dry-run", "Print payload and skip sending", false)
     .option("--json", "Output result as JSON", false)
     .option("--verbose", "Verbose logging", false)
@@ -188,7 +192,11 @@ Examples:
     .description(
       "Trigger a heartbeat or manual send once (wa-web or wa-twilio, no tmux)",
     )
-    .option("--provider <provider>", "auto | wa-web | wa-twilio | telegram", "auto")
+    .option(
+      "--provider <provider>",
+      "auto | wa-web | wa-twilio | telegram",
+      "auto",
+    )
     .option("--to <number>", "Override target E.164; defaults to allowFrom[0]")
     .option(
       "--session-id <id>",
@@ -248,9 +256,12 @@ Examples:
         defaultRuntime.exit(1);
       }
       const providerPref = String(opts.provider ?? "auto");
-      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      const normalized =
+        providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
       if (!["auto", "wa-web", "wa-twilio", "telegram"].includes(normalized)) {
-        defaultRuntime.error("--provider must be auto, wa-web, wa-twilio, or telegram");
+        defaultRuntime.error(
+          "--provider must be auto, wa-web, wa-twilio, or telegram",
+        );
         defaultRuntime.exit(1);
       }
 
@@ -294,8 +305,14 @@ Examples:
 
   program
     .command("relay")
-    .description("Auto-reply to inbound messages (auto-selects wa-web or wa-twilio)")
-    .option("--provider <provider>", "auto | wa-web | wa-twilio | telegram", "auto")
+    .description(
+      "Auto-reply to inbound messages (auto-selects wa-web or wa-twilio)",
+    )
+    .option(
+      "--provider <provider>",
+      "auto | wa-web | wa-twilio | telegram",
+      "auto",
+    )
     .option("-i, --interval <seconds>", "Polling interval for twilio mode", "5")
     .option(
       "-l, --lookback <minutes>",
@@ -337,9 +354,12 @@ Examples:
       const { file: logFile, level: logLevel } = getResolvedLoggerSettings();
       defaultRuntime.log(info(`logs: ${logFile} (level ${logLevel})`));
       const providerPref = String(opts.provider ?? "auto");
-      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      const normalized =
+        providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
       if (!["auto", "wa-web", "wa-twilio", "telegram"].includes(normalized)) {
-        defaultRuntime.error("--provider must be auto, wa-web, wa-twilio, or telegram");
+        defaultRuntime.error(
+          "--provider must be auto, wa-web, wa-twilio, or telegram",
+        );
         defaultRuntime.exit(1);
       }
       const intervalSeconds = Number.parseInt(opts.interval, 10);
@@ -473,7 +493,8 @@ Examples:
       const { file: logFile, level: logLevel } = getResolvedLoggerSettings();
       defaultRuntime.log(info(`logs: ${logFile} (level ${logLevel})`));
       const providerPref = String(opts.provider ?? "auto");
-      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      const normalized =
+        providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
       if (!["auto", "wa-web"].includes(normalized)) {
         defaultRuntime.error("--provider must be auto or wa-web");
         defaultRuntime.exit(1);
