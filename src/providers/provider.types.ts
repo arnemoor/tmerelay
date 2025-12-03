@@ -1,1 +1,1 @@
-export type Provider = "twilio" | "web";
+export type Provider = "wa-twilio" | "wa-web" | "telegram";

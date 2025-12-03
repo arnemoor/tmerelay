@@ -5,7 +5,7 @@ const { monitorWebProvider, pickProvider, logWebSelfId, monitorTwilio } =
   vi.hoisted(() => {
     return {
       monitorWebProvider: vi.fn().mockResolvedValue(undefined),
-      pickProvider: vi.fn().mockResolvedValue("web"),
+      pickProvider: vi.fn().mockResolvedValue("wa-web"),
       logWebSelfId: vi.fn(),
       monitorTwilio: vi.fn().mockResolvedValue(undefined),
     };
@@ -28,15 +28,15 @@ describe("CLI relay command (e2e-ish)", () => {
     vi.clearAllMocks();
   });
 
-  it("runs relay in web mode without crashing", async () => {
+  it("runs relay in wa-web mode without crashing", async () => {
     const program = buildProgram();
     program.exitOverride(); // throw instead of exiting process on error
 
     await expect(
-      program.parseAsync(["relay", "--provider", "web"], { from: "user" }),
+      program.parseAsync(["relay", "--provider", "wa-web"], { from: "user" }),
     ).resolves.toBeInstanceOf(Object);
 
-    expect(pickProvider).toHaveBeenCalledWith("web");
+    expect(pickProvider).toHaveBeenCalledWith("wa-web");
     expect(logWebSelfId).toHaveBeenCalledTimes(1);
     expect(monitorWebProvider).toHaveBeenCalledTimes(1);
     expect(monitorWebProvider.mock.calls[0][0]).toBe(false);

@@ -30,15 +30,15 @@ export async function sendCommand(
     throw new Error("Poll must be > 0 seconds");
   }
 
-  if (opts.provider === "web") {
+  if (opts.provider === "wa-web") {
     if (opts.dryRun) {
       runtime.log(
-        `[dry-run] would send via web -> ${opts.to}: ${opts.message}${opts.media ? ` (media ${opts.media})` : ""}`,
+        `[dry-run] would send via wa-web -> ${opts.to}: ${opts.message}${opts.media ? ` (media ${opts.media})` : ""}`,
       );
       return;
     }
     if (waitSeconds !== 0) {
-      runtime.log(info("Wait/poll are Twilio-only; ignored for provider=web."));
+      runtime.log(info("Wait/poll are Twilio-only; ignored for provider=wa-web."));
     }
 
     // Try to send via IPC to running relay first (avoids Signal session corruption)
@@ -52,7 +52,7 @@ export async function sendCommand(
           runtime.log(
             JSON.stringify(
               {
-                provider: "web",
+                provider: "wa-web",
                 via: "ipc",
                 to: opts.to,
                 messageId: ipcResult.messageId,
@@ -87,7 +87,7 @@ export async function sendCommand(
       runtime.log(
         JSON.stringify(
           {
-            provider: "web",
+            provider: "wa-web",
             via: "direct",
             to: opts.to,
             messageId: res.messageId,
@@ -103,7 +103,7 @@ export async function sendCommand(
 
   if (opts.dryRun) {
     runtime.log(
-      `[dry-run] would send via twilio -> ${opts.to}: ${opts.message}${opts.media ? ` (media ${opts.media})` : ""}`,
+      `[dry-run] would send via wa-twilio -> ${opts.to}: ${opts.message}${opts.media ? ` (media ${opts.media})` : ""}`,
     );
     return;
   }
@@ -126,7 +126,7 @@ export async function sendCommand(
     runtime.log(
       JSON.stringify(
         {
-          provider: "twilio",
+          provider: "wa-twilio",
           to: opts.to,
           sid: result?.sid ?? null,
           mediaUrl: mediaUrl ?? null,

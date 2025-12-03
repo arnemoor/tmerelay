@@ -195,7 +195,7 @@ Set to `0` to disable heartbeats entirely.
 
 Test it anytime:
 ```sh
-warelay heartbeat --provider web --to +1234567890 --verbose
+warelay heartbeat --provider wa-web --to +1234567890 --verbose
 ```
 
 ## How Messages Flow
@@ -236,7 +236,7 @@ Include `MEDIA:/path/to/file.png` in Claude's output to attach images. warelay h
 
 ```sh
 # Foreground (see all logs)
-warelay relay --provider web --verbose
+warelay relay --provider wa-web --verbose
 
 # Background in tmux (recommended)
 warelay relay:tmux

@@ -43,10 +43,10 @@ The Claude Code Bash tool escapes `!` to `\!` in command arguments. When using `
 
 ```bash
 # WRONG - will send "Hello\!" with backslash
-warelay send --provider web --to "+1234" --message 'Hello!'
+warelay send --provider wa-web --to "+1234" --message 'Hello!'
 
 # CORRECT - use heredoc to avoid escaping
-warelay send --provider web --to "+1234" --message "$(cat <<'EOF'
+warelay send --provider wa-web --to "+1234" --message "$(cat <<'EOF'
 Hello!
 EOF
 )"

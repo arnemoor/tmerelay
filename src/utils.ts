@@ -6,11 +6,25 @@ export async function ensureDir(dir: string) {
   await fs.promises.mkdir(dir, { recursive: true });
 }
 
-export type Provider = "twilio" | "web";
+export type Provider = "wa-twilio" | "wa-web" | "telegram";
+
+export function normalizeProvider(input: string): Provider {
+  // Legacy aliases with deprecation warnings
+  if (input === "web") {
+    console.warn('⚠️  "web" is deprecated. Use "wa-web" instead.');
+    return "wa-web";
+  }
+  if (input === "twilio") {
+    console.warn('⚠️  "twilio" is deprecated. Use "wa-twilio" instead.');
+    return "wa-twilio";
+  }
+  assertProvider(input);
+  return input;
+}
 
 export function assertProvider(input: string): asserts input is Provider {
-  if (input !== "twilio" && input !== "web") {
-    throw new Error("Provider must be 'twilio' or 'web'");
+  if (input !== "wa-twilio" && input !== "wa-web" && input !== "telegram") {
+    throw new Error('Provider must be "wa-web", "wa-twilio", or "telegram"');
   }
 }
 

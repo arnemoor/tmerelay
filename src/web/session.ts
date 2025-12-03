@@ -217,9 +217,9 @@ export function logWebSelfId(
 }
 
 export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
-  // Auto-select web when logged in; otherwise fall back to twilio.
+  // Auto-select wa-web when logged in; otherwise fall back to wa-twilio.
   if (pref !== "auto") return pref;
   const hasWeb = await webAuthExists();
-  if (hasWeb) return "web";
-  return "twilio";
+  if (hasWeb) return "wa-web";
+  return "wa-twilio";
 }

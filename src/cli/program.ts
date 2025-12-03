@@ -18,7 +18,7 @@ import {
 } from "../provider-web.js";
 import { defaultRuntime } from "../runtime.js";
 import { runTwilioHeartbeatOnce } from "../twilio/heartbeat.js";
-import type { Provider } from "../utils.js";
+import { normalizeProvider, type Provider } from "../utils.js";
 import { VERSION } from "../version.js";
 import {
   resolveHeartbeatSeconds,
@@ -79,7 +79,7 @@ export function buildProgram() {
       "Link personal WhatsApp Web and show QR + connection logs.",
     ],
     [
-      'warelay send --to +15551234567 --message "Hi" --provider web --json',
+      'warelay send --to +15551234567 --message "Hi" --provider wa-web --json',
       "Send via your web session and print JSON result.",
     ],
     [
@@ -154,7 +154,7 @@ export function buildProgram() {
       "20",
     )
     .option("-p, --poll <seconds>", "Polling interval while waiting", "2")
-    .option("--provider <provider>", "Provider: twilio | web", "twilio")
+    .option("--provider <provider>", "Provider: wa-twilio | wa-web | telegram", "wa-twilio")
     .option("--dry-run", "Print payload and skip sending", false)
     .option("--json", "Output result as JSON", false)
     .option("--verbose", "Verbose logging", false)
@@ -171,7 +171,12 @@ Examples:
       setVerbose(Boolean(opts.verbose));
       const deps = createDefaultDeps();
       try {
-        await sendCommand(opts, deps, defaultRuntime);
+        // Normalize provider to handle legacy names with deprecation warnings
+        const normalizedOpts = {
+          ...opts,
+          provider: normalizeProvider(opts.provider),
+        };
+        await sendCommand(normalizedOpts, deps, defaultRuntime);
       } catch (err) {
         defaultRuntime.error(String(err));
         defaultRuntime.exit(1);
@@ -181,9 +186,9 @@ Examples:
   program
     .command("heartbeat")
     .description(
-      "Trigger a heartbeat or manual send once (web or twilio, no tmux)",
+      "Trigger a heartbeat or manual send once (wa-web or wa-twilio, no tmux)",
     )
-    .option("--provider <provider>", "auto | web | twilio", "auto")
+    .option("--provider <provider>", "auto | wa-web | wa-twilio | telegram", "auto")
     .option("--to <number>", "Override target E.164; defaults to allowFrom[0]")
     .option(
       "--session-id <id>",
@@ -205,11 +210,11 @@ Examples:
       "after",
       `
 Examples:
-  warelay heartbeat                 # uses web session + first allowFrom contact
+  warelay heartbeat                 # uses wa-web session + first allowFrom contact
   warelay heartbeat --verbose       # prints detailed heartbeat logs
   warelay heartbeat --to +1555123   # override destination
   warelay heartbeat --session-id <uuid> --to +1555123   # resume a specific session
-  warelay heartbeat --message "Ping" --provider twilio
+  warelay heartbeat --message "Ping" --provider wa-twilio
   warelay heartbeat --all           # send to every active session recipient or allowFrom entry`,
     )
     .action(async (opts) => {
@@ -243,8 +248,9 @@ Examples:
         defaultRuntime.exit(1);
       }
       const providerPref = String(opts.provider ?? "auto");
-      if (!["auto", "web", "twilio"].includes(providerPref)) {
-        defaultRuntime.error("--provider must be auto, web, or twilio");
+      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      if (!["auto", "wa-web", "wa-twilio", "telegram"].includes(normalized)) {
+        defaultRuntime.error("--provider must be auto, wa-web, wa-twilio, or telegram");
         defaultRuntime.exit(1);
       }
 
@@ -255,14 +261,14 @@ Examples:
       const dryRun = Boolean(opts.dryRun);
 
       const provider =
-        providerPref === "twilio"
-          ? "twilio"
-          : await pickProvider(providerPref as "auto" | "web");
-      if (provider === "twilio") ensureTwilioEnv();
+        normalized === "wa-twilio"
+          ? "wa-twilio"
+          : await pickProvider(normalized as "auto" | Provider);
+      if (provider === "wa-twilio") ensureTwilioEnv();
 
       try {
         for (const to of recipients) {
-          if (provider === "web") {
+          if (provider === "wa-web") {
             await runWebHeartbeatOnce({
               to,
               verbose: Boolean(opts.verbose),
@@ -288,8 +294,8 @@ Examples:
 
   program
     .command("relay")
-    .description("Auto-reply to inbound messages (auto-selects web or twilio)")
-    .option("--provider <provider>", "auto | web | twilio", "auto")
+    .description("Auto-reply to inbound messages (auto-selects wa-web or wa-twilio)")
+    .option("--provider <provider>", "auto | wa-web | wa-twilio | telegram", "auto")
     .option("-i, --interval <seconds>", "Polling interval for twilio mode", "5")
     .option(
       "-l, --lookback <minutes>",
@@ -319,10 +325,10 @@ Examples:
       "after",
       `
 Examples:
-  warelay relay                     # auto: web if logged-in, else twilio poll
-  warelay relay --provider web      # force personal web session
-  warelay relay --provider twilio   # force twilio poll
-  warelay relay --provider twilio --interval 2 --lookback 30
+  warelay relay                     # auto: wa-web if logged-in, else wa-twilio poll
+  warelay relay --provider wa-web      # force personal web session
+  warelay relay --provider wa-twilio   # force twilio poll
+  warelay relay --provider wa-twilio --interval 2 --lookback 30
   # Troubleshooting: docs/refactor/web-relay-troubleshooting.md
 `,
     )
@@ -331,8 +337,9 @@ Examples:
       const { file: logFile, level: logLevel } = getResolvedLoggerSettings();
       defaultRuntime.log(info(`logs: ${logFile} (level ${logLevel})`));
       const providerPref = String(opts.provider ?? "auto");
-      if (!["auto", "web", "twilio"].includes(providerPref)) {
-        defaultRuntime.error("--provider must be auto, web, or twilio");
+      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      if (!["auto", "wa-web", "wa-twilio", "telegram"].includes(normalized)) {
+        defaultRuntime.error("--provider must be auto, wa-web, wa-twilio, or telegram");
         defaultRuntime.exit(1);
       }
       const intervalSeconds = Number.parseInt(opts.interval, 10);
@@ -410,9 +417,9 @@ Examples:
         webTuning.reconnect = reconnect;
       }
 
-      const provider = await pickProvider(providerPref as Provider | "auto");
+      const provider = await pickProvider(normalized as Provider | "auto");
 
-      if (provider === "web") {
+      if (provider === "wa-web") {
         logWebSelfId(defaultRuntime, true);
         const cfg = loadConfig();
         const effectiveHeartbeat = resolveHeartbeatSeconds(
@@ -442,7 +449,7 @@ Examples:
         } catch (err) {
           defaultRuntime.error(
             danger(
-              `Web relay failed: ${String(err)}. Not falling back; re-link with 'warelay login --provider web'.`,
+              `Web relay failed: ${String(err)}. Not falling back; re-link with 'warelay login --provider wa-web'.`,
             ),
           );
           defaultRuntime.exit(1);
@@ -457,25 +464,26 @@ Examples:
   program
     .command("relay:heartbeat")
     .description(
-      "Run relay with an immediate heartbeat (no tmux); requires web provider",
+      "Run relay with an immediate heartbeat (no tmux); requires wa-web provider",
     )
-    .option("--provider <provider>", "auto | web", "auto")
+    .option("--provider <provider>", "auto | wa-web", "auto")
     .option("--verbose", "Verbose logging", false)
     .action(async (opts) => {
       setVerbose(Boolean(opts.verbose));
       const { file: logFile, level: logLevel } = getResolvedLoggerSettings();
       defaultRuntime.log(info(`logs: ${logFile} (level ${logLevel})`));
       const providerPref = String(opts.provider ?? "auto");
-      if (!["auto", "web"].includes(providerPref)) {
-        defaultRuntime.error("--provider must be auto or web");
+      const normalized = providerPref === "auto" ? "auto" : normalizeProvider(providerPref);
+      if (!["auto", "wa-web"].includes(normalized)) {
+        defaultRuntime.error("--provider must be auto or wa-web");
         defaultRuntime.exit(1);
         return;
       }
-      const provider = await pickProvider(providerPref as "auto" | "web");
-      if (provider !== "web") {
+      const provider = await pickProvider(normalized as "auto" | Provider);
+      if (provider !== "wa-web") {
         defaultRuntime.error(
           danger(
-            "Heartbeat relay is only supported for the web provider. Link with `warelay login --verbose`.",
+            "Heartbeat relay is only supported for the wa-web provider. Link with `warelay login --verbose`.",
           ),
         );
         defaultRuntime.exit(1);
@@ -505,7 +513,7 @@ Examples:
       } catch (err) {
         defaultRuntime.error(
           danger(
-            `Web relay failed: ${String(err)}. Re-link with 'warelay login --provider web'.`,
+            `Web relay failed: ${String(err)}. Re-link with 'warelay login --provider wa-web'.`,
           ),
         );
         defaultRuntime.exit(1);

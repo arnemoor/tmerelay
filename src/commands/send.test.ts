@@ -33,7 +33,7 @@ describe("sendCommand", () => {
           message: "hi",
           wait: "-1",
           poll: "2",
-          provider: "twilio",
+          provider: "wa-twilio",
         },
         baseDeps,
         runtime,
@@ -47,7 +47,7 @@ describe("sendCommand", () => {
           message: "hi",
           wait: "0",
           poll: "0",
-          provider: "twilio",
+          provider: "wa-twilio",
         },
         baseDeps,
         runtime,
@@ -55,7 +55,7 @@ describe("sendCommand", () => {
     ).rejects.toThrow("Poll must be > 0 seconds");
   });
 
-  it("handles web dry-run and warns on wait", async () => {
+  it("handles wa-web dry-run and warns on wait", async () => {
     const deps = {
       ...baseDeps,
       sendMessageWeb: vi.fn(),
@@ -66,7 +66,7 @@ describe("sendCommand", () => {
         message: "hi",
         wait: "5",
         poll: "2",
-        provider: "web",
+        provider: "wa-web",
         dryRun: true,
         media: "pic.jpg",
       },
@@ -76,7 +76,7 @@ describe("sendCommand", () => {
     expect(deps.sendMessageWeb).not.toHaveBeenCalled();
   });
 
-  it("sends via web and outputs JSON", async () => {
+  it("sends via wa-web and outputs JSON", async () => {
     const deps = {
       ...baseDeps,
       sendMessageWeb: vi.fn().mockResolvedValue({ messageId: "web1" }),
@@ -87,7 +87,7 @@ describe("sendCommand", () => {
         message: "hi",
         wait: "1",
         poll: "2",
-        provider: "web",
+        provider: "wa-web",
         json: true,
       },
       deps,
@@ -95,11 +95,11 @@ describe("sendCommand", () => {
     );
     expect(deps.sendMessageWeb).toHaveBeenCalled();
     expect(runtime.log).toHaveBeenCalledWith(
-      expect.stringContaining('"provider": "web"'),
+      expect.stringContaining('"provider": "wa-web"'),
     );
   });
 
-  it("supports twilio dry-run", async () => {
+  it("supports wa-twilio dry-run", async () => {
     const deps = { ...baseDeps } as CliDeps;
     await sendCommand(
       {
@@ -107,7 +107,7 @@ describe("sendCommand", () => {
         message: "hi",
         wait: "0",
         poll: "2",
-        provider: "twilio",
+        provider: "wa-twilio",
         dryRun: true,
       },
       deps,
@@ -116,7 +116,7 @@ describe("sendCommand", () => {
     expect(deps.sendMessage).not.toHaveBeenCalled();
   });
 
-  it("sends via twilio with media and skips wait when zero", async () => {
+  it("sends via wa-twilio with media and skips wait when zero", async () => {
     const deps = {
       ...baseDeps,
       resolveTwilioMediaUrl: vi.fn().mockResolvedValue("https://media"),
@@ -129,7 +129,7 @@ describe("sendCommand", () => {
         message: "hi",
         wait: "0",
         poll: "2",
-        provider: "twilio",
+        provider: "wa-twilio",
         media: "pic.jpg",
         serveMedia: true,
         json: true,
@@ -143,7 +143,7 @@ describe("sendCommand", () => {
     });
     expect(deps.waitForFinalStatus).not.toHaveBeenCalled();
     expect(runtime.log).toHaveBeenCalledWith(
-      expect.stringContaining('"provider": "twilio"'),
+      expect.stringContaining('"provider": "wa-twilio"'),
     );
   });
 });

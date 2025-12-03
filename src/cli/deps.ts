@@ -103,7 +103,7 @@ export function logTwilioFrom(runtime: RuntimeEnv = defaultRuntime) {
   // Log the configured Twilio sender for clarity in CLI output.
   const env = readEnv(runtime);
   runtime.log(
-    info(`Provider: twilio (polling inbound) | from ${env.whatsappFrom}`),
+    info(`Provider: wa-twilio (polling inbound) | from ${env.whatsappFrom}`),
   );
 }
 

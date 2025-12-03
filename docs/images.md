@@ -4,13 +4,13 @@ This document defines how `warelay` should handle sending and replying with imag
 
 ## Goals
 - Allow sending an image with an optional caption via `warelay send` for both providers.
-- Allow auto-replies (Twilio webhook, Twilio poller, Web inbox) to return an image (optionally with text) when configured.
-- For the Web provider, also support audio/voice, video, and generic documents with sensible per-type limits.
+- Allow auto-replies (WhatsApp Twilio webhook, WhatsApp Twilio poller, WhatsApp Web inbox) to return an image (optionally with text) when configured.
+- For the WhatsApp Web provider, also support audio/voice, video, and generic documents with sensible per-type limits.
 - Keep the “one command at a time” queue intact; media fetch/serve must not block other replies longer than necessary.
 - Avoid introducing new external services: reuse the existing Tailscale Funnel port to host media for Twilio.
 
 ## CLI & Config Surface
-- `warelay send --media <path-or-url> [--message <caption>] [--provider twilio|web]`
+- `warelay send --media <path-or-url> [--message <caption>] [--provider wa-twilio|wa-web]`
   - `--media` optional; `--message` remains required for now (caption can be empty string to send only media).
   - `--dry-run` prints the resolved payload including hosted URL (twilio) or file path (web).
   - `--json` emits `{ provider, to, sid/messageId, mediaUrl, caption }`.
@@ -20,7 +20,7 @@ This document defines how `warelay` should handle sending and replying with imag
   - Both `text` and `mediaUrl` optional; at least one must be present to send a reply.
 
 ## Provider Behavior
-### Web (Baileys)
+### WhatsApp Web (Baileys)
 - Input: local file path **or** HTTP(S) URL.
 - Flow: load into Buffer, detect media kind, and apply the right payload:
   - Images: **resize + recompress to JPEG** (max side 2048px, quality step-down) to fit under `inbound.reply.mediaMaxMb` (default 5 MB) but never above the Web hard cap (6 MB).
@@ -30,8 +30,8 @@ This document defines how `warelay` should handle sending and replying with imag
 - Caption uses `--message` or `reply.text`; if caption is empty, send media-only.
 - Logging: non-verbose shows `↩️`/`✅` with caption; verbose includes `(media, <bytes>B, <ms>ms fetch)` and the local/remote path.
 
-### Twilio
-- Twilio API requires a public HTTPS `MediaUrl`; it will not accept local paths.
+### WhatsApp Twilio
+- WhatsApp Twilio API requires a public HTTPS `MediaUrl`; it will not accept local paths.
 - Hosting strategy: reuse the webhook/Funnel port.
 - When `--media` is a local path, copy to temp dir (`~/.warelay/media/<uuid>`), serve at `/media/<uuid>` on the existing Express app started for webhook, or spin up a short-lived server on demand for `send`.
   - `MediaUrl` = `https://<tailnet-host>.ts.net/media/<uuid>`.
@@ -50,32 +50,32 @@ This document defines how `warelay` should handle sending and replying with imag
 
 ## Auto-Reply Pipeline
 - `getReplyFromConfig` returns `{ text?, mediaUrl? }`.
-- Webhook / Twilio poller:
-  - If `mediaUrl` present, include `mediaUrl` in Twilio message payload; caption = `text` (may be empty).
+- Webhook / WhatsApp Twilio poller:
+  - If `mediaUrl` present, include `mediaUrl` in WhatsApp Twilio message payload; caption = `text` (may be empty).
   - If only `text`, behave as today.
-- Web inbox:
+- WhatsApp Web inbox:
   - If `mediaUrl` present, fetch/resolve same as send (local path or URL), send via Baileys with caption.
 
 ## Inbound Media to Commands (Claude etc.)
-- For completeness: when inbound Twilio/Web messages include media, download to temp file, expose templating variables:
-  - `{{MediaUrl}}` original URL (Twilio) or pseudo-URL (web).
+- For completeness: when inbound WhatsApp Twilio/WhatsApp Web messages include media, download to temp file, expose templating variables:
+  - `{{MediaUrl}}` original URL (WhatsApp Twilio) or pseudo-URL (WhatsApp Web).
   - `{{MediaPath}}` local temp path written before running the command.
 - Size guard: only download if ≤5 MB; else skip and log (aligns with the temp media store limit).
 - Saved inbound media is named with the detected MIME-based extension (e.g., `.jpg`), so later CLI sends reuse a correct filename/content-type even if WhatsApp omitted an extension.
 - Audio/voice notes: if you set `inbound.transcribeAudio.command`, warelay will run that CLI (templated with `{{MediaPath}}`) and replace `Body` with the transcript before continuing the reply flow; verbose logs indicate when transcription runs. The command prompt includes the original media path plus a `Transcript:` section so the model sees both.
 
 ## Errors & Messaging
-- Local path with twilio + Funnel disabled → error: “Twilio media needs a public URL; start `warelay webhook --ingress tailscale` or pass an https:// URL.”
+- Local path with WhatsApp Twilio + Funnel disabled → error: "WhatsApp Twilio media needs a public URL; start `warelay webhook --ingress tailscale` or pass an https:// URL.”
 - File too large → error mentions the applicable cap (5 MB for Twilio host, 6/16/100 MB for Web image/audio-video/doc respectively).
-- Download failure for web provider → “Failed to load media from <source>; skipping send.”
+- Download failure for WhatsApp Web provider → “Failed to load media from <source>; skipping send.”
 
 ## Tests to Add
-- Twilio: dry-run shows hosted URL; send payload includes `mediaUrl`; rejects when Funnel host missing.
-- Web: local path sends image (mock Baileys buffer assertion).
+- WhatsApp Twilio: dry-run shows hosted URL; send payload includes `mediaUrl`; rejects when Funnel host missing.
+- WhatsApp Web: local path sends image (mock Baileys buffer assertion).
 - Config: zod allows `mediaUrl`, returns combined object; command auto-reply handles `text+media`, `media-only`.
 - Media server: serves file, enforces TTL, returns 404 after cleanup.
 
 ## Open Decisions (confirm before coding)
 - TTL for temp media (proposal: 2 minutes, cleanup at start + interval).
 - One-file-per-send vs. batching: default to one-file-per-send; multi-attach not supported.
-- Should `warelay send --provider twilio --media` implicitly start the media server (even if webhook not running), or require `warelay webhook` already active? (Proposal: auto-start lightweight server on demand, auto-stop after media is fetched or TTL.)
+- Should `warelay send --provider wa-twilio --media` implicitly start the media server (even if webhook not running), or require `warelay webhook` already active? (Proposal: auto-start lightweight server on demand, auto-stop after media is fetched or TTL.)

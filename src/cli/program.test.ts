@@ -58,14 +58,11 @@ describe("cli program", () => {
     const program = buildProgram();
     await expect(
       program.parseAsync(["relay", "--provider", "bogus"], { from: "user" }),
-    ).rejects.toThrow("exit");
-    expect(runtime.error).toHaveBeenCalledWith(
-      "--provider must be auto, web, or twilio",
-    );
+    ).rejects.toThrow('Provider must be "wa-web", "wa-twilio", or "telegram"');
   });
 
   it("falls back to twilio when web relay fails", async () => {
-    pickProvider.mockResolvedValue("web");
+    pickProvider.mockResolvedValue("wa-web");
     monitorWebProvider.mockRejectedValue(new Error("no web"));
     const program = buildProgram();
     await expect(
@@ -97,7 +94,7 @@ describe("cli program", () => {
   });
 
   it("runs relay heartbeat command", async () => {
-    pickProvider.mockResolvedValue("web");
+    pickProvider.mockResolvedValue("wa-web");
     monitorWebProvider.mockResolvedValue(undefined);
     const originalExit = runtime.exit;
     runtime.exit = vi.fn();

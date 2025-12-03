@@ -1,6 +1,13 @@
 # Changelog
 
-## [Unreleased] (will be 1.3.1)
+## [Unreleased] (will be 2.0.0)
+
+### Breaking Changes
+- **Provider names renamed for clarity:** `web` → `wa-web`, `twilio` → `wa-twilio`, with new `telegram` provider name reserved for future Telegram support. This makes the platform (WhatsApp) explicit and prepares for multi-platform support. Legacy provider names (`web`, `twilio`) still work with deprecation warnings for backward compatibility. Users should update CLI commands, scripts, and documentation to use the new names.
+  - Migration: Replace `--provider web` with `--provider wa-web` and `--provider twilio` with `--provider wa-twilio` in all CLI invocations
+  - Auto-selection (`--provider auto`) logic unchanged: prefers `wa-web` when logged in, otherwise falls back to `wa-twilio`
+  - All JSON output now uses new provider names
+  - Error messages updated to reference new provider names
 
 ### Highlights
 - **Thinking directives & state:** `/t|/think|/thinking <level>` (aliases off|minimal|low|medium|high|max/highest). Inline applies to that message; directive-only message pins the level for the session; `/think:off` clears. Resolution: inline > session override > `inbound.reply.thinkingDefault` > off. Pi/Tau get `--thinking <level>` (except off); other agents append cue words (`think` → `think hard` → `think harder` → `ultrathink`). Heartbeat probe uses `HEARTBEAT /think:high`.

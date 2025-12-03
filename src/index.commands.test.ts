@@ -31,7 +31,7 @@ describe("CLI commands", () => {
     expect(names).toContain("login");
   });
 
-  it("send command routes to web provider", async () => {
+  it("send command routes to wa-web provider", async () => {
     const sendWeb = vi.spyOn(provider, "sendMessageWeb").mockResolvedValue();
     await index.program.parseAsync(
       [
@@ -41,7 +41,7 @@ describe("CLI commands", () => {
         "--message",
         "hi",
         "--provider",
-        "web",
+        "wa-web",
         "--wait",
         "0",
       ],
