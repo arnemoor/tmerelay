@@ -18,6 +18,7 @@ import type {
 import { createInitializedProvider } from "../providers/factory.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { defaultRuntime } from "../runtime.js";
+import { normalizeAllowFromEntry } from "../utils.js";
 
 const TELEGRAM_TEXT_LIMIT = 4096; // Telegram's message length limit
 
@@ -119,15 +120,19 @@ async function handleInboundMessage(
   // Check allowFrom filter
   const allowFrom = config.telegram?.allowFrom;
   if (Array.isArray(allowFrom) && allowFrom.length > 0) {
-    // Telegram IDs can be usernames (@user), user IDs (123456), or phone numbers
-    const from = message.from;
-    if (!allowFrom.includes("*") && !allowFrom.includes(from)) {
-      if (isVerbose()) {
-        logVerbose(
-          `Skipping auto-reply: sender ${from} not in telegram.allowFrom list`,
-        );
+    if (!allowFrom.includes("*")) {
+      const normalizedFrom = normalizeAllowFromEntry(message.from, "telegram");
+      const normalizedAllowList = allowFrom.map((e) =>
+        normalizeAllowFromEntry(e, "telegram"),
+      );
+      if (!normalizedAllowList.includes(normalizedFrom)) {
+        if (isVerbose()) {
+          logVerbose(
+            `Skipping auto-reply: sender ${message.from} not in telegram.allowFrom list`,
+          );
+        }
+        return;
       }
-      return;
     }
   }
 
@@ -187,7 +192,7 @@ export async function monitorTelegramProvider(
   verbose: boolean,
   runtime: RuntimeEnv = defaultRuntime,
 ): Promise<void> {
-  const env = readEnv(runtime);
+  const env = readEnv(runtime, "telegram");
   const config = loadConfig();
 
   if (!env.telegram?.apiId || !env.telegram?.apiHash) {

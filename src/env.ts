@@ -18,55 +18,116 @@ export type EnvConfig = {
   };
 };
 
-const EnvSchema = z
-  .object({
-    TWILIO_ACCOUNT_SID: z.string().min(1, "TWILIO_ACCOUNT_SID required"),
-    TWILIO_WHATSAPP_FROM: z.string().min(1, "TWILIO_WHATSAPP_FROM required"),
-    TWILIO_SENDER_SID: z.string().optional(),
-    TWILIO_AUTH_TOKEN: z.string().optional(),
-    TWILIO_API_KEY: z.string().optional(),
-    TWILIO_API_SECRET: z.string().optional(),
-    TELEGRAM_API_ID: z.string().optional(),
-    TELEGRAM_API_HASH: z.string().optional(),
-  })
-  .superRefine((val, ctx) => {
-    if (val.TWILIO_API_KEY && !val.TWILIO_API_SECRET) {
-      ctx.addIssue({
-        code: "custom",
-        message: "TWILIO_API_SECRET required when TWILIO_API_KEY is set",
-      });
-    }
-    if (val.TWILIO_API_SECRET && !val.TWILIO_API_KEY) {
-      ctx.addIssue({
-        code: "custom",
-        message: "TWILIO_API_KEY required when TWILIO_API_SECRET is set",
-      });
-    }
-    if (
-      !val.TWILIO_AUTH_TOKEN &&
-      !(val.TWILIO_API_KEY && val.TWILIO_API_SECRET)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Provide TWILIO_AUTH_TOKEN or both TWILIO_API_KEY and TWILIO_API_SECRET",
-      });
-    }
-    if (
-      (val.TELEGRAM_API_ID && !val.TELEGRAM_API_HASH) ||
-      (!val.TELEGRAM_API_ID && val.TELEGRAM_API_HASH)
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          "Both TELEGRAM_API_ID and TELEGRAM_API_HASH must be set together",
-      });
-    }
-  });
+// Base schema with all fields optional
+const BaseEnvSchema = z.object({
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  TWILIO_SENDER_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_API_KEY: z.string().optional(),
+  TWILIO_API_SECRET: z.string().optional(),
+  TELEGRAM_API_ID: z.string().optional(),
+  TELEGRAM_API_HASH: z.string().optional(),
+});
 
-export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
-  // Load and validate Twilio auth + sender configuration from env.
-  const parsed = EnvSchema.safeParse(process.env);
+// Twilio-specific validation
+const TwilioEnvSchema = BaseEnvSchema.extend({
+  TWILIO_ACCOUNT_SID: z.string().min(1, "TWILIO_ACCOUNT_SID required"),
+  TWILIO_WHATSAPP_FROM: z.string().min(1, "TWILIO_WHATSAPP_FROM required"),
+}).superRefine((val, ctx) => {
+  if (val.TWILIO_API_KEY && !val.TWILIO_API_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      message: "TWILIO_API_SECRET required when TWILIO_API_KEY is set",
+    });
+  }
+  if (val.TWILIO_API_SECRET && !val.TWILIO_API_KEY) {
+    ctx.addIssue({
+      code: "custom",
+      message: "TWILIO_API_KEY required when TWILIO_API_SECRET is set",
+    });
+  }
+  if (
+    !val.TWILIO_AUTH_TOKEN &&
+    !(val.TWILIO_API_KEY && val.TWILIO_API_SECRET)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Provide TWILIO_AUTH_TOKEN or both TWILIO_API_KEY and TWILIO_API_SECRET",
+    });
+  }
+});
+
+// Telegram-specific validation
+const TelegramEnvSchema = BaseEnvSchema.superRefine((val, ctx) => {
+  if (
+    (val.TELEGRAM_API_ID && !val.TELEGRAM_API_HASH) ||
+    (!val.TELEGRAM_API_ID && val.TELEGRAM_API_HASH)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Both TELEGRAM_API_ID and TELEGRAM_API_HASH must be set together",
+    });
+  }
+});
+
+// Schema requiring both Twilio and Telegram validation
+const AllEnvSchema = BaseEnvSchema.extend({
+  TWILIO_ACCOUNT_SID: z.string().min(1, "TWILIO_ACCOUNT_SID required"),
+  TWILIO_WHATSAPP_FROM: z.string().min(1, "TWILIO_WHATSAPP_FROM required"),
+}).superRefine((val, ctx) => {
+  // Twilio auth validation
+  if (val.TWILIO_API_KEY && !val.TWILIO_API_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      message: "TWILIO_API_SECRET required when TWILIO_API_KEY is set",
+    });
+  }
+  if (val.TWILIO_API_SECRET && !val.TWILIO_API_KEY) {
+    ctx.addIssue({
+      code: "custom",
+      message: "TWILIO_API_KEY required when TWILIO_API_SECRET is set",
+    });
+  }
+  if (
+    !val.TWILIO_AUTH_TOKEN &&
+    !(val.TWILIO_API_KEY && val.TWILIO_API_SECRET)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Provide TWILIO_AUTH_TOKEN or both TWILIO_API_KEY and TWILIO_API_SECRET",
+    });
+  }
+  // Telegram validation
+  if (
+    (val.TELEGRAM_API_ID && !val.TELEGRAM_API_HASH) ||
+    (!val.TELEGRAM_API_ID && val.TELEGRAM_API_HASH)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Both TELEGRAM_API_ID and TELEGRAM_API_HASH must be set together",
+    });
+  }
+});
+
+export function readEnv(
+  runtime: RuntimeEnv = defaultRuntime,
+  provider: "telegram" | "twilio" | "all" = "all",
+): EnvConfig {
+  // Select schema based on provider
+  const schema =
+    provider === "telegram"
+      ? TelegramEnvSchema
+      : provider === "twilio"
+        ? TwilioEnvSchema
+        : AllEnvSchema;
+
+  // Load and validate provider-specific configuration from env
+  const parsed = schema.safeParse(process.env);
   if (!parsed.success) {
     runtime.error("Invalid environment configuration:");
     parsed.error.issues.forEach((iss) => {
@@ -86,11 +147,15 @@ export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
     TELEGRAM_API_HASH: telegramApiHash,
   } = parsed.data;
 
-  let auth: AuthMode;
-  if (apiKey && apiSecret) {
+  // For Telegram-only mode, Twilio fields may be absent
+  let auth: AuthMode | undefined;
+  if (apiKey && apiSecret && accountSid) {
     auth = { accountSid, apiKey, apiSecret };
-  } else if (authToken) {
+  } else if (authToken && accountSid) {
     auth = { accountSid, authToken };
+  } else if (provider === "telegram") {
+    // Telegram-only mode - no Twilio auth needed
+    auth = undefined;
   } else {
     runtime.error("Missing Twilio auth configuration");
     runtime.exit(1);
@@ -98,10 +163,10 @@ export function readEnv(runtime: RuntimeEnv = defaultRuntime): EnvConfig {
   }
 
   const config: EnvConfig = {
-    accountSid,
-    whatsappFrom,
+    accountSid: accountSid || "",
+    whatsappFrom: whatsappFrom || "",
     whatsappSenderSid,
-    auth,
+    auth: auth || { accountSid: "", authToken: "" }, // Placeholder for Telegram-only
   };
 
   if (telegramApiId && telegramApiHash) {

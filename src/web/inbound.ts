@@ -13,7 +13,11 @@ import { loadConfig } from "../config/config.js";
 import { isVerbose, logVerbose } from "../globals.js";
 import { getChildLogger } from "../logging.js";
 import { saveMediaBuffer } from "../media/store.js";
-import { jidToE164, normalizeE164 } from "../utils.js";
+import {
+  jidToE164,
+  normalizeAllowFromEntry,
+  normalizeE164,
+} from "../utils.js";
 import {
   createWaSocket,
   getStatusCode,
@@ -119,11 +123,16 @@ export async function monitorWebInbox(options: {
       const allowlistEnabled =
         !group && Array.isArray(allowFrom) && allowFrom.length > 0;
       if (!isSamePhone && allowlistEnabled) {
-        const candidate = from;
-        const allowedList = allowFrom.map(normalizeE164);
-        if (!allowFrom.includes("*") && !allowedList.includes(candidate)) {
+        const normalizedFrom = normalizeAllowFromEntry(from, "wa-web");
+        const normalizedAllowList = allowFrom.map((e) =>
+          normalizeAllowFromEntry(e, "wa-web"),
+        );
+        if (
+          !allowFrom.includes("*") &&
+          !normalizedAllowList.includes(normalizedFrom)
+        ) {
           logVerbose(
-            `Blocked unauthorized sender ${candidate} (not in allowFrom list)`,
+            `Blocked unauthorized sender ${from} (not in allowFrom list)`,
           );
           continue; // Skip processing entirely
         }

@@ -17,6 +17,7 @@ import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import type { TwilioRequester } from "../twilio/types.js";
 import { sendTypingIndicator } from "../twilio/typing.js";
+import { normalizeAllowFromEntry, type AllowFromProvider } from "../utils.js";
 import { chunkText } from "./chunk.js";
 import { runCommandReply } from "./command-reply.js";
 import {
@@ -364,12 +365,24 @@ export async function getReplyFromConfig(
     logVerbose(`Allowing same-phone mode: from === to (${from})`);
   } else if (!isGroup && Array.isArray(allowFrom) && allowFrom.length > 0) {
     // Support "*" as wildcard to allow all senders
-    if (!allowFrom.includes("*") && !allowFrom.includes(from)) {
-      logVerbose(
-        `Skipping auto-reply: sender ${from || "<unknown>"} not in allowFrom list`,
+    if (!allowFrom.includes("*")) {
+      // Detect provider based on context format
+      const provider: AllowFromProvider = ctx.From?.startsWith("@")
+        ? "telegram"
+        : "wa-twilio";
+
+      const normalizedFrom = normalizeAllowFromEntry(from, provider);
+      const normalizedAllowList = allowFrom.map((e) =>
+        normalizeAllowFromEntry(e, provider),
       );
-      cleanupTyping();
-      return undefined;
+
+      if (!normalizedAllowList.includes(normalizedFrom)) {
+        logVerbose(
+          `Skipping auto-reply: sender ${from || "<unknown>"} not in allowFrom list`,
+        );
+        cleanupTyping();
+        return undefined;
+      }
     }
   }
 

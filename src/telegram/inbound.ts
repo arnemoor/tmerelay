@@ -7,6 +7,7 @@ import type {
   ProviderMedia,
   ProviderMessage,
 } from "../providers/base/types.js";
+import { normalizeAllowFromEntry } from "../utils.js";
 
 /**
  * Convert Telegram message to ProviderMessage format.
@@ -201,12 +202,11 @@ export function isAllowedSender(
     return true; // No whitelist = allow all
   }
 
-  const from = message.from.toLowerCase();
-  return allowFrom.some((allowed) => {
-    const normalized = allowed.toLowerCase().trim();
-    // Match @username or phone number
-    return from === normalized || from === `@${normalized}`;
-  });
+  const normalizedFrom = normalizeAllowFromEntry(message.from, "telegram");
+  const normalizedAllowList = allowFrom.map((e) =>
+    normalizeAllowFromEntry(e, "telegram"),
+  );
+  return normalizedAllowList.includes(normalizedFrom);
 }
 
 /**
@@ -239,11 +239,12 @@ export async function startMessageListener(
     }
   };
 
-  // Register event handler
-  client.addEventHandler(eventHandler, new NewMessage({}));
+  // Create event filter instance and reuse for both add and remove
+  const eventFilter = new NewMessage({});
+  client.addEventHandler(eventHandler, eventFilter);
 
   // Return cleanup function
   return () => {
-    client.removeEventHandler(eventHandler, new NewMessage({}));
+    client.removeEventHandler(eventHandler, eventFilter);
   };
 }
