@@ -1,3 +1,4 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -34,7 +35,7 @@ function resolveSessionDir(): string {
       TELEGRAM_SESSION_DIR_CLAWDIS,
       "session.string",
     );
-    if (require("node:fs").existsSync(clawdisSession)) {
+    if (fsSync.existsSync(clawdisSession)) {
       return TELEGRAM_SESSION_DIR_CLAWDIS;
     }
   } catch {

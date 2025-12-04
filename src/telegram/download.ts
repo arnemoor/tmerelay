@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createWriteStream } from "node:fs";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -12,7 +13,7 @@ const TEMP_DIR_LEGACY = path.join(os.homedir(), ".warelay", "telegram-temp");
 
 function resolveTempDir(): string {
   // Use CLAWDIS path if the main config directory exists, otherwise legacy
-  const clawdisConfigExists = require("node:fs").existsSync(
+  const clawdisConfigExists = fsSync.existsSync(
     path.join(os.homedir(), ".clawdis"),
   );
   return clawdisConfigExists ? TEMP_DIR_CLAWDIS : TEMP_DIR_LEGACY;
