@@ -23,8 +23,10 @@ export const capabilities: ProviderCapabilities = {
   supportsDeleting: false,
 
   // Telegram has very generous file size limits (2GB)
-  // Note: Current implementation buffers entire files in memory
-  maxMediaSize: 2 * 1024 * 1024 * 1024, // 2GB (with size check before download)
+  // WARNING: Current implementation buffers entire files in memory before sending.
+  // Files >500MB may cause memory pressure even though 2GB is technically supported.
+  // Streaming support (Phase 2) needed for safe handling of large files.
+  maxMediaSize: 2 * 1024 * 1024 * 1024, // 2GB (enforced when Content-Length available)
 
   // Telegram supports virtually all file types
   supportedMediaTypes: ["*/*"],

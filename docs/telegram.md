@@ -120,11 +120,11 @@ Removes the saved session from `~/.warelay/telegram/session/`.
 | Feature | Supported | Notes |
 |---------|-----------|-------|
 | Text messages | ✅ | Full UTF-8 support, including emoji |
-| Media (images, video, audio) | ✅ | Up to 2 GB per file (requires Content-Length header) |
+| Media (images, video, audio) | ⚠️ | Up to 2 GB supported, but files >500MB may cause memory issues (buffers entire file) |
 | Typing indicators | ✅ | Shows "typing..." while processing |
 | Replies | ✅ | Reply to specific messages |
 | Message formatting | ✅ | Markdown and HTML formatting |
-| Max media size | 2 GB | Much higher than WhatsApp (100 MB) |
+| Max media size | 2 GB | Enforced when Content-Length available; ⚠️ large files buffered in memory |
 | Delivery receipts | ❌ | MTProto limitation (no sent/delivered/read states) |
 | Read receipts | ❌ | Not exposed via Provider interface |
 | Reactions | ❌ | Not exposed via Provider interface (requires peer context) |
@@ -422,9 +422,24 @@ Output includes:
 3. **No secret chats** - End-to-end encrypted "Secret Chats" are not supported by GramJS
 4. **Rate limits** - Personal accounts have rate limits (use with moderation)
 
+### Media Memory Limitations
+
+**Current implementation buffers entire files in memory before sending.**
+
+- Files up to ~100MB: Generally safe
+- Files 100-500MB: May cause memory pressure on constrained systems
+- Files >500MB: High risk of out-of-memory errors
+- Files >2GB: Hard limit enforced (when Content-Length available)
+
+**Recommendations:**
+- Use local file paths when possible (more efficient than URLs)
+- For large files, ensure adequate system memory (2x file size)
+- URLs without Content-Length headers will show warning but proceed
+- Streaming support planned for Phase 2 to eliminate memory buffering
+
 ### Known Issues
 
-- Very large media files (>1 GB) may take time to upload
+- Very large media files (>500 MB) may cause memory spikes or OOM errors
 - Session may expire if not used for extended periods (re-login required)
 - Username changes won't be reflected in `allowFrom` until relay restart
 
