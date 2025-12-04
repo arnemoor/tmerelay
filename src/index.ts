@@ -2,6 +2,19 @@
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// Suppress GramJS localStorage warning in Node.js environment
+process.removeAllListeners("warning");
+process.on("warning", (warning) => {
+  if (
+    warning.message?.includes("--localstorage-file") ||
+    warning.message?.includes("localStorage")
+  ) {
+    return; // Suppress GramJS/store2 localStorage warnings
+  }
+  // Re-emit other warnings
+  process.emitWarning(warning);
+});
+
 import dotenv from "dotenv";
 import {
   autoReplyIfConfigured,
