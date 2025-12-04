@@ -6,7 +6,19 @@ import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-const TEMP_DIR = path.join(os.homedir(), ".warelay", "telegram-temp");
+// Prefer ~/.clawdis/telegram-temp, but fall back to ~/.warelay for compatibility
+const TEMP_DIR_CLAWDIS = path.join(os.homedir(), ".clawdis", "telegram-temp");
+const TEMP_DIR_LEGACY = path.join(os.homedir(), ".warelay", "telegram-temp");
+
+function resolveTempDir(): string {
+  // Use CLAWDIS path if the main config directory exists, otherwise legacy
+  const clawdisConfigExists = require("node:fs").existsSync(
+    path.join(os.homedir(), ".clawdis"),
+  );
+  return clawdisConfigExists ? TEMP_DIR_CLAWDIS : TEMP_DIR_LEGACY;
+}
+
+const TEMP_DIR = resolveTempDir();
 const DEFAULT_ORPHAN_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**

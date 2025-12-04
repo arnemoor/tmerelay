@@ -4,14 +4,44 @@ import path from "node:path";
 import { StringSession } from "telegram/sessions/index.js";
 import { ensureDir } from "../utils.js";
 
-export const TELEGRAM_SESSION_DIR = path.join(
+// New branding path (preferred)
+const TELEGRAM_SESSION_DIR_CLAWDIS = path.join(
+  os.homedir(),
+  ".clawdis",
+  "telegram",
+  "session",
+);
+
+// Legacy path (fallback for backward compatibility)
+const TELEGRAM_SESSION_DIR_LEGACY = path.join(
   os.homedir(),
   ".warelay",
   "telegram",
   "session",
 );
 
-const SESSION_FILE = path.join(TELEGRAM_SESSION_DIR, "session.string");
+// Exported for backward compatibility
+export const TELEGRAM_SESSION_DIR = TELEGRAM_SESSION_DIR_LEGACY;
+
+/**
+ * Resolve the Telegram session directory path.
+ * Prefers ~/.clawdis/telegram/session, falls back to ~/.warelay/telegram/session
+ */
+function resolveSessionDir(): string {
+  try {
+    // Synchronous check for CLAWDIS path
+    const clawdisSession = path.join(
+      TELEGRAM_SESSION_DIR_CLAWDIS,
+      "session.string",
+    );
+    if (require("node:fs").existsSync(clawdisSession)) {
+      return TELEGRAM_SESSION_DIR_CLAWDIS;
+    }
+  } catch {
+    // Fall through to legacy path
+  }
+  return TELEGRAM_SESSION_DIR_LEGACY;
+}
 
 /**
  * Load Telegram session from disk.
@@ -19,8 +49,10 @@ const SESSION_FILE = path.join(TELEGRAM_SESSION_DIR, "session.string");
  */
 export async function loadSession(): Promise<StringSession | null> {
   try {
-    await ensureDir(TELEGRAM_SESSION_DIR);
-    const sessionString = await fs.readFile(SESSION_FILE, "utf-8");
+    const sessionDir = resolveSessionDir();
+    await ensureDir(sessionDir);
+    const sessionFile = path.join(sessionDir, "session.string");
+    const sessionString = await fs.readFile(sessionFile, "utf-8");
     return new StringSession(sessionString.trim());
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
@@ -32,35 +64,55 @@ export async function loadSession(): Promise<StringSession | null> {
 
 /**
  * Save Telegram session to disk.
+ * Prefers saving to ~/.clawdis/telegram/session (new location).
  */
 export async function saveSession(session: StringSession): Promise<void> {
-  await ensureDir(TELEGRAM_SESSION_DIR);
+  // Always save to new CLAWDIS path for new sessions
+  await ensureDir(TELEGRAM_SESSION_DIR_CLAWDIS);
   const sessionString = session.save();
-  await fs.writeFile(SESSION_FILE, sessionString, "utf-8");
+  const sessionFile = path.join(TELEGRAM_SESSION_DIR_CLAWDIS, "session.string");
+  await fs.writeFile(sessionFile, sessionString, "utf-8");
 }
 
 /**
  * Clear Telegram session from disk.
+ * Removes session from both CLAWDIS and legacy paths.
  */
 export async function clearSession(): Promise<void> {
-  try {
-    await fs.unlink(SESSION_FILE);
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw err;
+  const paths = [
+    path.join(TELEGRAM_SESSION_DIR_CLAWDIS, "session.string"),
+    path.join(TELEGRAM_SESSION_DIR_LEGACY, "session.string"),
+  ];
+
+  for (const sessionPath of paths) {
+    try {
+      await fs.unlink(sessionPath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+        // Ignore ENOENT (file doesn't exist), but throw other errors
+        throw err;
+      }
     }
-    // File doesn't exist, nothing to clear
   }
 }
 
 /**
  * Check if a Telegram session exists.
+ * Checks both CLAWDIS and legacy paths.
  */
 export async function telegramAuthExists(): Promise<boolean> {
-  try {
-    await fs.access(SESSION_FILE);
-    return true;
-  } catch {
-    return false;
+  const paths = [
+    path.join(TELEGRAM_SESSION_DIR_CLAWDIS, "session.string"),
+    path.join(TELEGRAM_SESSION_DIR_LEGACY, "session.string"),
+  ];
+
+  for (const sessionPath of paths) {
+    try {
+      await fs.access(sessionPath);
+      return true; // Found a session file
+    } catch {
+      // Continue checking other paths
+    }
   }
+  return false; // No session found in any path
 }

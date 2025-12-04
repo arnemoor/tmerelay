@@ -32,7 +32,10 @@ describe("download", () => {
   describe("getTelegramTempDir", () => {
     it("returns correct path", () => {
       const dir = getTelegramTempDir();
-      expect(dir).toContain(".warelay");
+      // Should contain either .clawdis or .warelay (depending on which exists)
+      const hasCorrectDir =
+        dir.includes(".clawdis") || dir.includes(".warelay");
+      expect(hasCorrectDir).toBe(true);
       expect(dir).toContain("telegram-temp");
       expect(path.isAbsolute(dir)).toBe(true);
     });
