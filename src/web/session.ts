@@ -241,6 +241,8 @@ export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
 export async function selectProviders(
   prefs: (Provider | "auto")[],
 ): Promise<Provider[]> {
+  const skipped: string[] = [];
+
   // If 'auto' in list, expand to all authenticated providers
   if (prefs.includes("auto")) {
     const available: Provider[] = [];
@@ -248,12 +250,16 @@ export async function selectProviders(
     // Check wa-web
     if (await webAuthExists()) {
       available.push("wa-web");
+    } else {
+      skipped.push("wa-web (not authenticated)");
     }
 
     // Check telegram
     const { telegramAuthExists } = await import("../telegram/session.js");
     if (await telegramAuthExists()) {
       available.push("telegram");
+    } else {
+      skipped.push("telegram (not authenticated)");
     }
 
     // Always include wa-twilio if env vars present
@@ -261,7 +267,13 @@ export async function selectProviders(
       readEnv(defaultRuntime, "twilio");
       available.push("wa-twilio");
     } catch {
-      // Twilio not configured
+      skipped.push("wa-twilio (not configured)");
+    }
+
+    if (available.length > 0 && skipped.length > 0) {
+      console.log(
+        `ℹ️  Auto-selected ${available.length} provider(s), skipped: ${skipped.join(", ")}`,
+      );
     }
 
     return available;
@@ -270,14 +282,18 @@ export async function selectProviders(
   // Validate each provider is authenticated
   const validated: Provider[] = [];
   for (const pref of prefs) {
-    if (pref === "wa-web" && (await webAuthExists())) {
-      validated.push("wa-web");
+    if (pref === "wa-web") {
+      if (await webAuthExists()) {
+        validated.push("wa-web");
+      } else {
+        skipped.push("wa-web (not authenticated - run: warelay login --provider wa-web)");
+      }
     } else if (pref === "telegram") {
       const { telegramAuthExists } = await import("../telegram/session.js");
       if (await telegramAuthExists()) {
         validated.push("telegram");
       } else {
-        console.warn(`⚠️  telegram selected but not authenticated`);
+        skipped.push("telegram (not authenticated - run: warelay login --provider telegram)");
       }
     } else if (pref === "wa-twilio") {
       // Check Twilio env vars
@@ -285,9 +301,13 @@ export async function selectProviders(
         readEnv(defaultRuntime, "twilio");
         validated.push("wa-twilio");
       } catch {
-        console.warn(`⚠️  wa-twilio selected but not configured`);
+        skipped.push("wa-twilio (not configured - set TWILIO env vars in .env)");
       }
     }
+  }
+
+  if (skipped.length > 0) {
+    console.warn(`⚠️  Skipped ${skipped.length} provider(s): ${skipped.join(", ")}`);
   }
 
   return validated;

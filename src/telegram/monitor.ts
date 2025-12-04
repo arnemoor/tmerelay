@@ -183,14 +183,16 @@ async function handleInboundMessage(
  * - Creates and initializes a TelegramProvider
  * - Registers message handler with auto-reply logic
  * - Starts listening for messages
- * - Runs indefinitely until interrupted
+ * - Runs indefinitely until interrupted or abort signal fires
  *
  * @param verbose - Enable verbose logging
  * @param runtime - Runtime environment (for testing)
+ * @param abortSignal - Optional AbortSignal to stop monitoring gracefully
  */
 export async function monitorTelegramProvider(
   verbose: boolean,
   runtime: RuntimeEnv = defaultRuntime,
+  abortSignal?: AbortSignal,
 ): Promise<void> {
   const env = readEnv(runtime, "telegram");
   const config = loadConfig();
@@ -240,8 +242,20 @@ export async function monitorTelegramProvider(
     ),
   );
 
-  // Keep process alive indefinitely
-  await new Promise(() => {
-    // Never resolves - process runs until interrupted
-  });
+  // Keep process alive until abort signal or forever
+  if (abortSignal) {
+    await new Promise<void>((resolve) => {
+      if (abortSignal.aborted) {
+        resolve();
+        return;
+      }
+      abortSignal.addEventListener("abort", () => resolve());
+    });
+    runtime.log(info("📡 Telegram relay stopping..."));
+  } else {
+    // No abort signal: run indefinitely
+    await new Promise(() => {
+      // Never resolves - process runs until interrupted
+    });
+  }
 }

@@ -510,6 +510,10 @@ Examples:
 
         await runMultiProviderRelay(providers, cfg, deps, {
           verbose: Boolean(opts.verbose),
+          webTuning,
+          twilioInterval: intervalSeconds,
+          twilioLookback: lookbackMinutes,
+          runtime: defaultRuntime,
         });
         return;
       }
