@@ -431,8 +431,16 @@ Output includes:
 - Files >500MB: High risk of out-of-memory errors
 - Files >2GB: Hard limit enforced (when Content-Length available)
 
+**Production Safety:**
+Set `TELEGRAM_MAX_MEDIA_MB` environment variable to enforce a lower limit:
+```bash
+# Limit to 100MB for production safety
+TELEGRAM_MAX_MEDIA_MB=100 warelay relay --provider telegram
+```
+
 **Recommendations:**
 - Use local file paths when possible (more efficient than URLs)
+- For production deployments, set `TELEGRAM_MAX_MEDIA_MB=100` or similar
 - For large files, ensure adequate system memory (2x file size)
 - URLs without Content-Length headers will show warning but proceed
 - Streaming support planned for Phase 2 to eliminate memory buffering

@@ -1,6 +1,36 @@
 import type { ProviderCapabilities } from "../providers/base/types.js";
 
 /**
+ * Get the maximum media size for Telegram, respecting user overrides.
+ * Defaults to 2GB (Telegram's technical limit), but can be lowered via
+ * TELEGRAM_MAX_MEDIA_MB env var for production safety.
+ */
+function getMaxMediaSize(): number {
+  const defaultMax = 2 * 1024 * 1024 * 1024; // 2GB
+  const envOverride = process.env.TELEGRAM_MAX_MEDIA_MB;
+
+  if (envOverride) {
+    const overrideMB = Number.parseInt(envOverride, 10);
+    if (Number.isNaN(overrideMB) || overrideMB <= 0) {
+      console.warn(
+        `⚠️  Invalid TELEGRAM_MAX_MEDIA_MB="${envOverride}" (must be positive number). Using default 2048MB.`,
+      );
+      return defaultMax;
+    }
+    const overrideBytes = overrideMB * 1024 * 1024;
+    if (overrideBytes > defaultMax) {
+      console.warn(
+        `⚠️  TELEGRAM_MAX_MEDIA_MB=${overrideMB} exceeds Telegram's 2048MB limit. Using 2048MB.`,
+      );
+      return defaultMax;
+    }
+    return overrideBytes;
+  }
+
+  return defaultMax;
+}
+
+/**
  * Telegram MTProto Provider Capabilities
  *
  * Declares what features the Telegram provider supports through the Provider interface.
@@ -26,7 +56,10 @@ export const capabilities: ProviderCapabilities = {
   // WARNING: Current implementation buffers entire files in memory before sending.
   // Files >500MB may cause memory pressure even though 2GB is technically supported.
   // Streaming support (Phase 2) needed for safe handling of large files.
-  maxMediaSize: 2 * 1024 * 1024 * 1024, // 2GB (enforced when Content-Length available)
+  //
+  // PRODUCTION TIP: Set TELEGRAM_MAX_MEDIA_MB to a lower value (e.g., 100) to prevent
+  // memory exhaustion. Example: TELEGRAM_MAX_MEDIA_MB=100 warelay relay
+  maxMediaSize: getMaxMediaSize(),
 
   // Telegram supports virtually all file types
   supportedMediaTypes: ["*/*"],
