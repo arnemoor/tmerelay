@@ -48,7 +48,7 @@ export async function sendCommand(
       "../providers/factory.js"
     );
     const { readEnv } = await import("../env.js");
-    const env = readEnv(runtime);
+    const env = readEnv(runtime, "telegram");
 
     if (!env.telegram?.apiId || !env.telegram?.apiHash) {
       throw new Error(

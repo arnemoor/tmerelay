@@ -88,4 +88,27 @@ export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export type AllowFromProvider = "telegram" | "wa-web" | "wa-twilio";
+
+/**
+ * Normalize an allowFrom entry based on provider type.
+ * For Telegram: ensures @ prefix and lowercase
+ * For WhatsApp: normalizes to E.164 format
+ */
+export function normalizeAllowFromEntry(
+  entry: string,
+  provider: AllowFromProvider,
+): string {
+  const trimmed = entry.trim().toLowerCase();
+  if (!trimmed) return "";
+
+  if (provider === "telegram") {
+    // Telegram uses @username format
+    return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+  }
+
+  // WhatsApp (both web and twilio) use E.164 phone numbers
+  return normalizeE164(entry);
+}
+
 export const CONFIG_DIR = `${os.homedir()}/.warelay`;

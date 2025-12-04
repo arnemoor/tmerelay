@@ -36,6 +36,8 @@ export class TwilioProvider implements Provider {
   private listening = false;
   private stopMonitoringFn: (() => void) | null = null;
   private pollIntervalId: NodeJS.Timeout | null = null;
+  private seenMessageIds = new Set<string>();
+  private readonly MAX_SEEN_IDS = 1000;
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -236,8 +238,6 @@ export class TwilioProvider implements Provider {
     const pollIntervalSeconds = 5; // Default poll interval
     const lookbackMinutes = 5; // Look back 5 minutes for messages
 
-    let lastSeenSid: string | undefined;
-
     const poll = async () => {
       try {
         const messages = await listRecentMessages(
@@ -249,26 +249,32 @@ export class TwilioProvider implements Provider {
         // Filter to inbound only
         const inbound = messages.filter((m) => m.direction === "inbound");
 
-        // Sort newest first
-        const newestFirst = [...inbound].sort(
+        // Process messages in chronological order (oldest first)
+        const chronological = [...inbound].sort(
           (a, b) =>
-            (b.dateCreated?.getTime() ?? 0) - (a.dateCreated?.getTime() ?? 0),
+            (a.dateCreated?.getTime() ?? 0) - (b.dateCreated?.getTime() ?? 0),
         );
 
-        // Process new messages (reverse iteration to process oldest first)
-        for (let i = newestFirst.length - 1; i >= 0; i--) {
-          const msg = newestFirst[i];
+        for (const msg of chronological) {
           if (!msg.sid) continue;
-          if (lastSeenSid && msg.sid === lastSeenSid) continue;
+
+          // Skip if already processed
+          if (this.seenMessageIds.has(msg.sid)) continue;
 
           // Convert to ProviderMessage and call handler
           const providerMessage = this.convertTwilioMessageToProvider(msg);
           await handler(providerMessage);
-        }
 
-        // Update last seen SID
-        if (newestFirst.length > 0) {
-          lastSeenSid = newestFirst[0].sid;
+          // Mark as seen
+          this.seenMessageIds.add(msg.sid);
+
+          // Overflow protection: if we have too many seen IDs, remove oldest 100
+          if (this.seenMessageIds.size > this.MAX_SEEN_IDS) {
+            const toDelete = Array.from(this.seenMessageIds).slice(0, 100);
+            for (const id of toDelete) {
+              this.seenMessageIds.delete(id);
+            }
+          }
         }
       } catch (err) {
         if (this.config?.verbose) {
@@ -306,6 +312,9 @@ export class TwilioProvider implements Provider {
       this.stopMonitoringFn();
       this.stopMonitoringFn = null;
     }
+
+    // Clear seen message IDs
+    this.seenMessageIds.clear();
 
     this.listening = false;
   }
