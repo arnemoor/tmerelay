@@ -52,15 +52,24 @@ export async function sendMediaMessage(
     // Check content length before downloading to prevent OOM
     const headResponse = await fetch(media.url, { method: "HEAD" });
     const contentLength = headResponse.headers.get("content-length");
-    if (contentLength) {
-      const sizeBytes = Number.parseInt(contentLength, 10);
-      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
-      if (sizeBytes > maxSize) {
-        throw new Error(
-          `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
-            "Large files require streaming support (not yet implemented).",
-        );
-      }
+
+    const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+
+    if (!contentLength) {
+      // Reject when content-length is missing (chunked/CDN without size)
+      // to prevent OOM until streaming is implemented
+      throw new Error(
+        `Cannot download media from ${media.url}: missing Content-Length header. ` +
+          "Large files without size information require streaming support (not yet implemented).",
+      );
+    }
+
+    const sizeBytes = Number.parseInt(contentLength, 10);
+    if (sizeBytes > maxSize) {
+      throw new Error(
+        `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
+          "Large files require streaming support (not yet implemented).",
+      );
     }
 
     // Download URL to buffer (only after size check)
