@@ -5,6 +5,7 @@ import type {
   SendOptions,
   SendResult,
 } from "../providers/base/types.js";
+import { capabilities } from "./capabilities.js";
 import { extractUserId, resolveEntity } from "./utils.js";
 
 /**
@@ -53,14 +54,15 @@ export async function sendMediaMessage(
     const headResponse = await fetch(media.url, { method: "HEAD" });
     const contentLength = headResponse.headers.get("content-length");
 
-    const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+    const maxSize = capabilities.maxMediaSize;
 
     if (contentLength) {
       const sizeBytes = Number.parseInt(contentLength, 10);
       if (sizeBytes > maxSize) {
         throw new Error(
-          `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
-            "Large files require streaming support (not yet implemented).",
+          `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${(maxSize / 1024 / 1024).toFixed(0)}MB. ` +
+            "Large files require streaming support (not yet implemented). " +
+            "Lower limit with TELEGRAM_MAX_MEDIA_MB env var if needed.",
         );
       }
     } else {
