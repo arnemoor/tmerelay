@@ -13,11 +13,7 @@ import { loadConfig } from "../config/config.js";
 import { isVerbose, logVerbose } from "../globals.js";
 import { getChildLogger } from "../logging.js";
 import { saveMediaBuffer } from "../media/store.js";
-import {
-  jidToE164,
-  normalizeAllowFromEntry,
-  normalizeE164,
-} from "../utils.js";
+import { jidToE164, normalizeAllowFromEntry, normalizeE164 } from "../utils.js";
 import {
   createWaSocket,
   getStatusCode,

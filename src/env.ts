@@ -168,7 +168,9 @@ export function readEnv(
     }
   } else if (provider === "twilio" || provider === "all") {
     // Twilio required but missing
-    runtime.error("Missing Twilio configuration (TWILIO_ACCOUNT_SID, TWILIO_WHATSAPP_FROM)");
+    runtime.error(
+      "Missing Twilio configuration (TWILIO_ACCOUNT_SID, TWILIO_WHATSAPP_FROM)",
+    );
     runtime.exit(1);
     throw new Error("unreachable");
   }

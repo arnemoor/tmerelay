@@ -17,7 +17,7 @@ import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import type { TwilioRequester } from "../twilio/types.js";
 import { sendTypingIndicator } from "../twilio/typing.js";
-import { normalizeAllowFromEntry, type AllowFromProvider } from "../utils.js";
+import { type AllowFromProvider, normalizeAllowFromEntry } from "../utils.js";
 import { chunkText } from "./chunk.js";
 import { runCommandReply } from "./command-reply.js";
 import {
