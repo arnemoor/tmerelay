@@ -60,6 +60,13 @@ vi.mock("qrcode-terminal", () => ({
   generate: vi.fn(),
 }));
 
+vi.mock("./outbound.js", () => ({
+  sendMessageWeb: vi.fn().mockResolvedValue({
+    messageId: "mock-msg-id",
+    toJid: "+1234567890@s.whatsapp.net",
+  }),
+}));
+
 export const baileys = (await import(
   "@whiskeysockets/baileys"
 )) as unknown as typeof import("@whiskeysockets/baileys") & {

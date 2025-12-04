@@ -439,6 +439,7 @@ function getSessionSnapshot(
   return { key, entry, fresh, idleMinutes };
 }
 
+
 async function deliverWebReply(params: {
   replyResult: ReplyPayload;
   msg: WebInboundMsg;
@@ -447,6 +448,7 @@ async function deliverWebReply(params: {
   runtime: RuntimeEnv;
   connectionId?: string;
   skipLog?: boolean;
+  verbose?: boolean;
 }) {
   const {
     replyResult,
@@ -456,6 +458,7 @@ async function deliverWebReply(params: {
     runtime,
     connectionId,
     skipLog,
+    verbose = false,
   } = params;
   const replyStarted = Date.now();
   const textChunks = chunkText(replyResult.text || "", WEB_TEXT_LIMIT);
@@ -465,10 +468,14 @@ async function deliverWebReply(params: {
       ? [replyResult.mediaUrl]
       : [];
 
+  // Extract phone number from JID for fresh connections
+  const toPhone = msg.from.replace(/@s\.whatsapp\.net$/, "");
+
   // Text-only replies
   if (mediaList.length === 0 && textChunks.length) {
     for (const chunk of textChunks) {
-      await msg.reply(chunk);
+      // Use sendMessageWeb to create fresh connection instead of stale msg.reply()
+      await sendMessageWeb(toPhone, chunk, { verbose });
     }
     if (!skipLog) {
       logInfo(
@@ -500,44 +507,12 @@ async function deliverWebReply(params: {
     const caption =
       index === 0 ? remainingText.shift() || undefined : undefined;
     try {
+      // Use sendMessageWeb for fresh connection instead of stale msg.sendMedia()
+      const bodyText = caption || "";
+      await sendMessageWeb(toPhone, bodyText, { verbose, mediaUrl });
+
+      // Log media size after successful send
       const media = await loadWebMedia(mediaUrl, maxMediaBytes);
-      if (isVerbose()) {
-        logVerbose(
-          `Web auto-reply media size: ${(media.buffer.length / (1024 * 1024)).toFixed(2)}MB`,
-        );
-        logVerbose(
-          `Web auto-reply media source: ${mediaUrl} (kind ${media.kind})`,
-        );
-      }
-      if (media.kind === "image") {
-        await msg.sendMedia({
-          image: media.buffer,
-          caption,
-          mimetype: media.contentType,
-        });
-      } else if (media.kind === "audio") {
-        await msg.sendMedia({
-          audio: media.buffer,
-          ptt: true,
-          mimetype: media.contentType,
-          caption,
-        });
-      } else if (media.kind === "video") {
-        await msg.sendMedia({
-          video: media.buffer,
-          caption,
-          mimetype: media.contentType,
-        });
-      } else {
-        const fileName = mediaUrl.split("/").pop() ?? "file";
-        const mimetype = media.contentType ?? "application/octet-stream";
-        await msg.sendMedia({
-          document: media.buffer,
-          fileName,
-          caption,
-          mimetype,
-        });
-      }
       logInfo(
         `✅ Sent web media reply to ${msg.from} (${(media.buffer.length / (1024 * 1024)).toFixed(2)}MB)`,
         runtime,
@@ -573,7 +548,7 @@ async function deliverWebReply(params: {
         const fallbackText = fallbackTextParts.join("\n");
         if (fallbackText) {
           console.log(`⚠️  Media skipped; sent text-only to ${msg.from}`);
-          await msg.reply(fallbackText);
+          await sendMessageWeb(toPhone, fallbackText, { verbose });
         }
       }
     }
@@ -581,7 +556,7 @@ async function deliverWebReply(params: {
 
   // Remaining text chunks after media
   for (const chunk of remainingText) {
-    await msg.reply(chunk);
+    await sendMessageWeb(toPhone, chunk, { verbose });
   }
 }
 
@@ -821,6 +796,7 @@ export async function monitorWebProvider(
             replyLogger,
             runtime,
             connectionId,
+            verbose,
           });
 
           if (replyPayload.text) {
@@ -1208,6 +1184,7 @@ export async function monitorWebProvider(
           replyLogger,
           runtime,
           connectionId,
+          verbose,
         });
 
         const durationMs = Date.now() - tickStart;
