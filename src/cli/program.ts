@@ -721,18 +721,47 @@ Examples:
     .description(
       "Run relay --verbose inside tmux (session warelay-relay), restarting if already running, then attach",
     )
-    .action(async () => {
+    .option("--providers <kinds>", "Comma-separated providers (wa-web,telegram)")
+    .option("--provider <kind>", "Single provider (wa-web, wa-twilio, telegram, auto)")
+    .allowUnknownOption(true)
+    .action(async (opts, cmd) => {
       try {
+        // Build relay command with all forwarded options
+        const args = ["relay", "--verbose"];
+
+        // Add provider/providers flags if specified
+        if (opts.providers) {
+          args.push("--providers", opts.providers);
+        } else if (opts.provider) {
+          args.push("--provider", opts.provider);
+        }
+
+        // Add any other unknown options from rawArgs
+        const rawArgs = cmd.parent?.rawArgs ?? [];
+        const relayTmuxIndex = rawArgs.indexOf("relay:tmux");
+        if (relayTmuxIndex >= 0) {
+          const extraArgs = rawArgs.slice(relayTmuxIndex + 1);
+          // Filter out options we already handled
+          for (let i = 0; i < extraArgs.length; i++) {
+            const arg = extraArgs[i];
+            if (arg === "--providers" || arg === "--provider") {
+              i++; // Skip the next arg (the value)
+              continue;
+            }
+            if (!args.includes(arg)) {
+              args.push(arg);
+            }
+          }
+        }
+
+        const relayCmd = `pnpm warelay ${args.join(" ")}`;
         const shouldAttach = Boolean(process.stdout.isTTY);
-        const session = await spawnRelayTmux(
-          "pnpm warelay relay --verbose",
-          shouldAttach,
-        );
+        const session = await spawnRelayTmux(relayCmd, shouldAttach);
         defaultRuntime.log(
           info(
             shouldAttach
-              ? `tmux session started and attached: ${session} (pane running "pnpm warelay relay --verbose")`
-              : `tmux session started: ${session} (pane running "pnpm warelay relay --verbose"); attach manually with "tmux attach -t ${session}"`,
+              ? `tmux session started and attached: ${session} (pane running "${relayCmd}")`
+              : `tmux session started: ${session} (pane running "${relayCmd}"); attach manually with "tmux attach -t ${session}"`,
           ),
         );
       } catch (err) {

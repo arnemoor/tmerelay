@@ -66,7 +66,8 @@ export const claudeSpec: AgentSpec = {
             .join("\n\n")
         : body;
 
-    return [...beforeBody, bodyWithIdentity, ...afterBody];
+    // Use -- separator to prevent messages starting with - from being interpreted as flags
+    return [...beforeBody, "--", bodyWithIdentity, ...afterBody];
   },
   parseOutput: (rawStdout) => {
     const parsed = parseClaudeJson(rawStdout);

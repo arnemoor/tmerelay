@@ -35,6 +35,8 @@ export async function runMultiProviderRelay(
     `📡 Starting ${providers.length} provider(s): ${providers.join(", ")}`,
   );
 
+  let startupComplete = false;
+
   // Spawn monitors concurrently
   const monitorPromises = providers.map(async (provider) => {
     try {
@@ -42,7 +44,12 @@ export async function runMultiProviderRelay(
         const { monitorTelegramProvider } = await import(
           "../telegram/monitor.js"
         );
-        await monitorTelegramProvider(Boolean(opts.verbose), runtime, signal);
+        await monitorTelegramProvider(
+          Boolean(opts.verbose),
+          runtime,
+          signal,
+          true, // suppressStartMessage
+        );
       } else if (provider === "wa-web") {
         const { monitorWebProvider } = await import("../web/auto-reply.js");
         await monitorWebProvider(
@@ -52,7 +59,7 @@ export async function runMultiProviderRelay(
           undefined,
           runtime,
           signal,
-          opts.webTuning ?? {},
+          { ...opts.webTuning, suppressStartMessage: true },
         );
       } else if (provider === "wa-twilio") {
         const { monitorTwilio } = await import("../twilio/monitor.js");
@@ -71,6 +78,16 @@ export async function runMultiProviderRelay(
       // Continue - don't crash other providers
     }
   });
+
+  // Wait a brief moment for all providers to initialize, then show summary
+  setTimeout(() => {
+    if (!startupComplete && !signal.aborted) {
+      startupComplete = true;
+      runtime.log(
+        `✅ All ${providers.length} provider(s) active. Listening for messages... (Ctrl+C to stop)`,
+      );
+    }
+  }, 1500);
 
   // Wait for all monitors (or abort)
   await Promise.allSettled(monitorPromises);

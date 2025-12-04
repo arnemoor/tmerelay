@@ -194,6 +194,7 @@ export async function monitorTelegramProvider(
   verbose: boolean,
   runtime: RuntimeEnv = defaultRuntime,
   abortSignal?: AbortSignal,
+  suppressStartMessage = false,
 ): Promise<void> {
   const env = readEnv(runtime, "telegram");
   const config = loadConfig();
@@ -237,11 +238,13 @@ export async function monitorTelegramProvider(
   // Start listening
   await provider.startListening();
 
-  runtime.log(
-    info(
-      "✅ Telegram relay active. Listening for messages... (Ctrl+C to stop)",
-    ),
-  );
+  if (!suppressStartMessage) {
+    runtime.log(
+      info(
+        "✅ Telegram relay active. Listening for messages... (Ctrl+C to stop)",
+      ),
+    );
+  }
 
   // Keep process alive until abort signal or forever
   if (abortSignal) {
