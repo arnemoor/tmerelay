@@ -840,9 +840,11 @@ describe("startMessageListener", () => {
     let addedFilter: any = null;
     let removedFilter: any = null;
 
-    mockClient.addEventHandler = vi.fn().mockImplementation((handler, filter) => {
-      addedFilter = filter;
-    });
+    mockClient.addEventHandler = vi
+      .fn()
+      .mockImplementation((handler, filter) => {
+        addedFilter = filter;
+      });
 
     mockClient.removeEventHandler = vi
       .fn()

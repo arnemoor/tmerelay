@@ -100,9 +100,7 @@ describe("normalizeAllowFromEntry", () => {
     });
 
     it("converts to lowercase", () => {
-      expect(normalizeAllowFromEntry("TestUser", "telegram")).toBe(
-        "@testuser",
-      );
+      expect(normalizeAllowFromEntry("TestUser", "telegram")).toBe("@testuser");
       expect(normalizeAllowFromEntry("@TestUser", "telegram")).toBe(
         "@testuser",
       );

@@ -10,6 +10,7 @@ import type {
 } from "../providers/base/index.js";
 import { capabilities } from "./capabilities.js";
 import { createTelegramClient, isClientConnected } from "./client.js";
+import { cleanOrphanedTempFiles } from "./download.js";
 import { startMessageListener } from "./inbound.js";
 import { loginTelegram, logoutTelegram } from "./login.js";
 import {
@@ -44,6 +45,9 @@ export class TelegramProvider implements Provider {
 
     this.config = config;
     this.verbose = config.verbose ?? false;
+
+    // Clean up orphaned temp files from previous crashes
+    await cleanOrphanedTempFiles();
 
     // Load session
     const session = await loadSession();
