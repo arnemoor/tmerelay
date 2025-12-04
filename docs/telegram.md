@@ -438,6 +438,8 @@ Set `TELEGRAM_MAX_MEDIA_MB` environment variable to enforce a lower limit:
 TELEGRAM_MAX_MEDIA_MB=100 warelay relay --provider telegram
 ```
 
+**Note:** The limit is read at process startup. Changing the env var requires restarting the relay.
+
 **Recommendations:**
 - Use local file paths when possible (more efficient than URLs)
 - For production deployments, set `TELEGRAM_MAX_MEDIA_MB=100` or similar
