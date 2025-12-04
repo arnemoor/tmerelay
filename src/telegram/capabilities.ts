@@ -55,13 +55,13 @@ export const capabilities: ProviderCapabilities = {
   supportsEditing: false,
   supportsDeleting: false,
 
-  // Telegram has very generous file size limits (2GB)
-  // WARNING: Current implementation buffers entire files in memory before sending.
-  // Files >500MB may cause memory pressure even though 2GB is technically supported.
-  // Streaming support (Phase 2) needed for safe handling of large files.
+  // Telegram supports 2GB files with streaming downloads (no memory buffering).
+  // Downloads stream to ~/.warelay/telegram-temp and are automatically cleaned up.
+  // For safety, set TELEGRAM_MAX_MEDIA_MB to limit disk usage and download time.
+  // Orphaned files cleaned on process restart (1 hour TTL).
   //
-  // PRODUCTION TIP: Set TELEGRAM_MAX_MEDIA_MB to a lower value (e.g., 100) to prevent
-  // memory exhaustion. Example: TELEGRAM_MAX_MEDIA_MB=100 warelay relay
+  // PRODUCTION TIP: Set TELEGRAM_MAX_MEDIA_MB to a lower value (e.g., 500) to limit
+  // disk usage and download time. Example: TELEGRAM_MAX_MEDIA_MB=500 warelay relay
   maxMediaSize: getMaxMediaSize(),
 
   // Telegram supports virtually all file types
