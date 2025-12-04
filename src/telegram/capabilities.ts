@@ -4,6 +4,9 @@ import type { ProviderCapabilities } from "../providers/base/types.js";
  * Get the maximum media size for Telegram, respecting user overrides.
  * Defaults to 2GB (Telegram's technical limit), but can be lowered via
  * TELEGRAM_MAX_MEDIA_MB env var for production safety.
+ *
+ * NOTE: This is evaluated once at module load time. Changing the env var
+ * requires restarting the process to take effect.
  */
 function getMaxMediaSize(): number {
   const defaultMax = 2 * 1024 * 1024 * 1024; // 2GB

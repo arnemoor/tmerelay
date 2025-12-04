@@ -430,6 +430,51 @@ describe("outbound", () => {
       consoleWarnSpy.mockRestore();
     });
 
+    it("falls back to GET when HEAD request fails", async () => {
+      const mockResult = {
+        id: 999,
+      };
+
+      const mockImageData = new Uint8Array([1, 2, 3, 4]);
+
+      // Mock HEAD request failure (host blocks HEAD)
+      vi.mocked(global.fetch).mockRejectedValueOnce(
+        new Error("Method Not Allowed"),
+      );
+
+      // Mock GET request succeeds
+      const mockGetResponse = {
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
+      };
+      vi.mocked(global.fetch).mockResolvedValueOnce(mockGetResponse as any);
+
+      vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
+
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation();
+
+      const media: ProviderMedia = {
+        type: "image",
+        url: "https://example.com/no-head.jpg",
+      };
+
+      const result = await sendMediaMessage(
+        mockClient as TelegramClient,
+        "@testuser",
+        "Image from host blocking HEAD",
+        media,
+      );
+
+      // Should warn about HEAD failure
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("HEAD request failed"),
+      );
+      // Should still succeed
+      expect(result.messageId).toBe("999");
+
+      consoleWarnSpy.mockRestore();
+    });
+
     it("throws error when URL download fails", async () => {
       // Mock HEAD request success
       const mockHeadResponse = {

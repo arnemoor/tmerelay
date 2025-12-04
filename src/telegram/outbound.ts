@@ -51,8 +51,17 @@ export async function sendMediaMessage(
     file = media.buffer;
   } else if (media.url) {
     // Check content length before downloading (best effort size validation)
-    const headResponse = await fetch(media.url, { method: "HEAD" });
-    const contentLength = headResponse.headers.get("content-length");
+    // HEAD request may fail on some hosts - fall back to proceeding without size check
+    let contentLength: string | null = null;
+    try {
+      const headResponse = await fetch(media.url, { method: "HEAD" });
+      contentLength = headResponse.headers.get("content-length");
+    } catch (headError) {
+      // HEAD blocked or failed - warn but proceed with GET
+      console.warn(
+        `⚠️  HEAD request failed for ${media.url}, proceeding without size check: ${headError instanceof Error ? headError.message : String(headError)}`,
+      );
+    }
 
     const maxSize = capabilities.maxMediaSize;
 
@@ -65,8 +74,8 @@ export async function sendMediaMessage(
             "Lower limit with TELEGRAM_MAX_MEDIA_MB env var if needed.",
         );
       }
-    } else {
-      // Warn but proceed when content-length is missing (some CDNs/hosts don't provide it)
+    } else if (!contentLength) {
+      // Warn when content-length is missing (CDNs/hosts don't provide it, or HEAD failed)
       // User accepts OOM risk for large files without size information
       console.warn(
         `⚠️  Downloading media from ${media.url} without Content-Length header. ` +
