@@ -7,6 +7,7 @@ import {
   CONFIG_DIR,
   ensureDir,
   jidToE164,
+  normalizeAllowFromEntry,
   normalizeE164,
   normalizePath,
   sleep,
@@ -83,5 +84,80 @@ describe("jidToE164", () => {
       });
     expect(jidToE164("123@lid")).toBe("+5551234");
     spy.mockRestore();
+  });
+});
+
+describe("normalizeAllowFromEntry", () => {
+  describe("telegram provider", () => {
+    it("adds @ prefix when missing", () => {
+      expect(normalizeAllowFromEntry("testuser", "telegram")).toBe("@testuser");
+    });
+
+    it("keeps @ prefix when present", () => {
+      expect(normalizeAllowFromEntry("@testuser", "telegram")).toBe(
+        "@testuser",
+      );
+    });
+
+    it("converts to lowercase", () => {
+      expect(normalizeAllowFromEntry("TestUser", "telegram")).toBe(
+        "@testuser",
+      );
+      expect(normalizeAllowFromEntry("@TestUser", "telegram")).toBe(
+        "@testuser",
+      );
+    });
+
+    it("trims whitespace", () => {
+      expect(normalizeAllowFromEntry("  testuser  ", "telegram")).toBe(
+        "@testuser",
+      );
+      expect(normalizeAllowFromEntry("  @testuser  ", "telegram")).toBe(
+        "@testuser",
+      );
+    });
+
+    it("returns empty string for empty input", () => {
+      expect(normalizeAllowFromEntry("", "telegram")).toBe("");
+      expect(normalizeAllowFromEntry("   ", "telegram")).toBe("");
+    });
+  });
+
+  describe("whatsapp providers", () => {
+    it("normalizes phone to E.164 for wa-web", () => {
+      expect(normalizeAllowFromEntry("1234567890", "wa-web")).toBe(
+        "+1234567890",
+      );
+      expect(normalizeAllowFromEntry("+1234567890", "wa-web")).toBe(
+        "+1234567890",
+      );
+    });
+
+    it("normalizes phone to E.164 for wa-twilio", () => {
+      expect(normalizeAllowFromEntry("1234567890", "wa-twilio")).toBe(
+        "+1234567890",
+      );
+      expect(normalizeAllowFromEntry("+1234567890", "wa-twilio")).toBe(
+        "+1234567890",
+      );
+    });
+
+    it("strips whatsapp prefix and formatting", () => {
+      expect(normalizeAllowFromEntry("whatsapp:+1234567890", "wa-web")).toBe(
+        "+1234567890",
+      );
+      expect(
+        normalizeAllowFromEntry("whatsapp:(555) 123-4567", "wa-twilio"),
+      ).toBe("+5551234567");
+    });
+
+    it("handles phone numbers with spaces and dashes", () => {
+      expect(normalizeAllowFromEntry("+1 555 123 4567", "wa-web")).toBe(
+        "+15551234567",
+      );
+      expect(normalizeAllowFromEntry("555-123-4567", "wa-twilio")).toBe(
+        "+5551234567",
+      );
+    });
   });
 });

@@ -94,4 +94,84 @@ describe("env helpers", () => {
     });
     expect(() => ensureTwilioEnv(runtime)).toThrow("exit");
   });
+
+  describe("provider-aware validation", () => {
+    it("telegram provider works without Twilio credentials", () => {
+      setEnv({
+        TELEGRAM_API_ID: "12345",
+        TELEGRAM_API_HASH: "abcdef",
+        TWILIO_ACCOUNT_SID: undefined,
+        TWILIO_WHATSAPP_FROM: undefined,
+        TWILIO_AUTH_TOKEN: undefined,
+      });
+      const cfg = readEnv(runtime, "telegram");
+      expect(cfg.telegram?.apiId).toBe(12345);
+      expect(cfg.telegram?.apiHash).toBe("abcdef");
+    });
+
+    it("telegram provider fails when only API_ID provided", () => {
+      setEnv({
+        TELEGRAM_API_ID: "12345",
+        TELEGRAM_API_HASH: undefined,
+      });
+      expect(() => readEnv(runtime, "telegram")).toThrow("exit");
+      expect(runtime.error).toHaveBeenCalled();
+    });
+
+    it("telegram provider fails when only API_HASH provided", () => {
+      setEnv({
+        TELEGRAM_API_ID: undefined,
+        TELEGRAM_API_HASH: "abcdef",
+      });
+      expect(() => readEnv(runtime, "telegram")).toThrow("exit");
+      expect(runtime.error).toHaveBeenCalled();
+    });
+
+    it("twilio provider works without Telegram credentials", () => {
+      setEnv({
+        ...baseEnv,
+        TWILIO_AUTH_TOKEN: "token",
+        TELEGRAM_API_ID: undefined,
+        TELEGRAM_API_HASH: undefined,
+      });
+      const cfg = readEnv(runtime, "twilio");
+      expect(cfg.accountSid).toBe("AC123");
+      expect(cfg.whatsappFrom).toBe("whatsapp:+1555");
+      if ("authToken" in cfg.auth) {
+        expect(cfg.auth.authToken).toBe("token");
+      }
+    });
+
+    it("twilio provider fails when Twilio credentials missing", () => {
+      setEnv({
+        TELEGRAM_API_ID: "12345",
+        TELEGRAM_API_HASH: "abcdef",
+        TWILIO_ACCOUNT_SID: undefined,
+        TWILIO_WHATSAPP_FROM: undefined,
+      });
+      expect(() => readEnv(runtime, "twilio")).toThrow("exit");
+      expect(runtime.error).toHaveBeenCalled();
+    });
+
+    it("all provider requires both Twilio and validates Telegram pairing", () => {
+      setEnv({
+        ...baseEnv,
+        TWILIO_AUTH_TOKEN: "token",
+        TELEGRAM_API_ID: "12345",
+        TELEGRAM_API_HASH: "abcdef",
+      });
+      const cfg = readEnv(runtime, "all");
+      expect(cfg.accountSid).toBe("AC123");
+      expect(cfg.telegram?.apiId).toBe(12345);
+    });
+
+    it("all provider defaults when no provider specified", () => {
+      setEnv({
+        ...baseEnv,
+        TWILIO_AUTH_TOKEN: "token",
+      });
+      const cfg = readEnv(runtime); // No provider param = 'all'
+      expect(cfg.accountSid).toBe("AC123");
+    });
+  });
 });

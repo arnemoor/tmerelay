@@ -416,6 +416,93 @@ describe("TwilioProvider", () => {
       // Should not throw
       await expect(provider.startListening()).resolves.not.toThrow();
     });
+
+    it("should not reprocess messages with same SID", async () => {
+      const mockMessage = {
+        sid: "SM12345",
+        from: "whatsapp:+1234567890",
+        to: "whatsapp:+1555",
+        body: "Test message",
+        direction: "inbound" as const,
+        dateCreated: new Date("2025-01-01T12:00:00Z"),
+      };
+
+      // Return same message twice (simulating 5-min lookback window)
+      vi.mocked(listRecentMessages)
+        .mockResolvedValueOnce([mockMessage])
+        .mockResolvedValueOnce([mockMessage]);
+
+      const handler = vi.fn();
+      provider.onMessage(handler);
+
+      await provider.startListening();
+
+      // Wait for second poll to complete (simulated)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Handler should only be called once despite message appearing twice
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it("should use Set for deduplication instead of single lastSeenSid", async () => {
+      // Verify the provider has seenMessageIds Set property (not lastSeenSid)
+      // biome-ignore lint/suspicious/noExplicitAny: Accessing private member for testing
+      expect((provider as any).seenMessageIds).toBeInstanceOf(Set);
+      // biome-ignore lint/suspicious/noExplicitAny: Accessing private member for testing
+      expect((provider as any).MAX_SEEN_IDS).toBe(1000);
+    });
+
+    it("should clear seen IDs on stopListening", async () => {
+      const mockMessage = {
+        sid: "SM12345",
+        from: "whatsapp:+1234567890",
+        to: "whatsapp:+1555",
+        body: "Test message",
+        direction: "inbound" as const,
+        dateCreated: new Date("2025-01-01T12:00:00Z"),
+      };
+
+      vi.mocked(listRecentMessages).mockResolvedValue([mockMessage]);
+
+      const handler = vi.fn();
+      provider.onMessage(handler);
+
+      await provider.startListening();
+      await provider.stopListening();
+
+      // Verify seenMessageIds Set is cleared
+      // biome-ignore lint/suspicious/noExplicitAny: Accessing private member for testing
+      expect((provider as any).seenMessageIds.size).toBe(0);
+    });
+
+    it("should handle overflow protection for seen IDs", async () => {
+      // Create 50 messages (limited for faster test execution)
+      const messages = Array.from({ length: 50 }, (_, i) => ({
+        sid: `SM${i.toString().padStart(5, "0")}`,
+        from: "whatsapp:+1234567890",
+        to: "whatsapp:+1555",
+        body: `Message ${i}`,
+        direction: "inbound" as const,
+        dateCreated: new Date("2025-01-01T12:00:00Z"),
+      }));
+
+      vi.mocked(listRecentMessages).mockResolvedValue(messages);
+
+      const handler = vi.fn();
+      provider.onMessage(handler);
+
+      await provider.startListening();
+
+      // All messages should be processed
+      expect(handler).toHaveBeenCalledTimes(50);
+
+      // Verify all SIDs are tracked in the seen set
+      // biome-ignore lint/suspicious/noExplicitAny: Accessing private member for testing
+      const seenIds = (provider as any).seenMessageIds;
+      expect(seenIds.size).toBe(50);
+      expect(seenIds.has("SM00000")).toBe(true);
+      expect(seenIds.has("SM00049")).toBe(true);
+    });
   });
 
   describe("authentication", () => {

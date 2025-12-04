@@ -835,4 +835,42 @@ describe("startMessageListener", () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  it("uses same NewMessage instance for add and remove", async () => {
+    let addedFilter: any = null;
+    let removedFilter: any = null;
+
+    mockClient.addEventHandler = vi.fn().mockImplementation((handler, filter) => {
+      addedFilter = filter;
+    });
+
+    mockClient.removeEventHandler = vi
+      .fn()
+      .mockImplementation((handler, filter) => {
+        removedFilter = filter;
+      });
+
+    const cleanup = await startMessageListener(
+      mockClient as TelegramClient,
+      mockHandler,
+    );
+
+    cleanup();
+
+    // Verify same instance used for both add and remove (strict equality)
+    expect(addedFilter).toBe(removedFilter);
+    expect(addedFilter).not.toBeNull();
+  });
+
+  it("cleanup can be called multiple times safely", async () => {
+    const cleanup = await startMessageListener(
+      mockClient as TelegramClient,
+      mockHandler,
+    );
+
+    cleanup();
+    cleanup(); // Should not throw
+
+    expect(mockClient.removeEventHandler).toHaveBeenCalled();
+  });
 });
