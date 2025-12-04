@@ -1,8 +1,6 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import readline from "node:readline";
 
-import { piSpec } from "../agents/pi.js";
-
 type TauRpcOptions = {
   argv: string[];
   cwd?: string;
@@ -24,7 +22,6 @@ class TauRpcClient {
   private stderr = "";
   private buffer: string[] = [];
   private idleTimer: NodeJS.Timeout | null = null;
-  private readonly idleMs = 120;
   private pending:
     | {
         resolve: (r: TauRpcResult) => void;

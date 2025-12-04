@@ -21,7 +21,6 @@ import {
   clearSession,
   loadSession,
   saveSession,
-  TELEGRAM_SESSION_DIR,
   telegramAuthExists,
 } from "./session.js";
 

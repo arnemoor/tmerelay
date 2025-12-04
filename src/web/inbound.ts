@@ -13,7 +13,7 @@ import { loadConfig } from "../config/config.js";
 import { isVerbose, logVerbose } from "../globals.js";
 import { getChildLogger } from "../logging.js";
 import { saveMediaBuffer } from "../media/store.js";
-import { jidToE164, normalizeAllowFromEntry, normalizeE164 } from "../utils.js";
+import { jidToE164, normalizeE164 } from "../utils.js";
 import {
   createWaSocket,
   getStatusCode,
@@ -39,6 +39,8 @@ export type WebInboundMessage = {
   senderJid?: string;
   senderE164?: string;
   senderName?: string;
+  groupSubject?: string;
+  groupParticipants?: string[];
   mentionedJids?: string[];
   selfJid?: string | null;
   selfE164?: string | null;
@@ -73,6 +75,33 @@ export async function monitorWebInbox(options: {
   const selfJid = sock.user?.id;
   const selfE164 = selfJid ? jidToE164(selfJid) : null;
   const seen = new Set<string>();
+  const groupMetaCache = new Map<
+    string,
+    { subject?: string; participants?: string[]; expires: number }
+  >();
+  const GROUP_META_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+  const getGroupMeta = async (jid: string) => {
+    const cached = groupMetaCache.get(jid);
+    if (cached && cached.expires > Date.now()) return cached;
+    try {
+      const meta = await sock.groupMetadata(jid);
+      const participants =
+        meta.participants
+          ?.map((p) => jidToE164(p.id) ?? p.id)
+          .filter(Boolean) ?? [];
+      const entry = {
+        subject: meta.subject,
+        participants,
+        expires: Date.now() + GROUP_META_TTL_MS,
+      };
+      groupMetaCache.set(jid, entry);
+      return entry;
+    } catch (err) {
+      logVerbose(`Failed to fetch group metadata for ${jid}: ${String(err)}`);
+      return { expires: Date.now() + GROUP_META_TTL_MS };
+    }
+  };
 
   sock.ev.on("messages.upsert", async (upsert) => {
     if (upsert.type !== "notify") return;
@@ -109,6 +138,13 @@ export async function monitorWebInbox(options: {
       const from = group ? remoteJid : jidToE164(remoteJid);
       // Skip if we still can't resolve an id to key conversation
       if (!from) continue;
+      let groupSubject: string | undefined;
+      let groupParticipants: string[] | undefined;
+      if (group) {
+        const meta = await getGroupMeta(remoteJid);
+        groupSubject = meta.subject;
+        groupParticipants = meta.participants;
+      }
 
       // Filter unauthorized senders early to prevent wasted processing
       // and potential session corruption from Bad MAC errors
@@ -119,16 +155,11 @@ export async function monitorWebInbox(options: {
       const allowlistEnabled =
         !group && Array.isArray(allowFrom) && allowFrom.length > 0;
       if (!isSamePhone && allowlistEnabled) {
-        const normalizedFrom = normalizeAllowFromEntry(from, "wa-web");
-        const normalizedAllowList = allowFrom.map((e) =>
-          normalizeAllowFromEntry(e, "wa-web"),
-        );
-        if (
-          !allowFrom.includes("*") &&
-          !normalizedAllowList.includes(normalizedFrom)
-        ) {
+        const candidate = from;
+        const allowedList = allowFrom.map(normalizeE164);
+        if (!allowFrom.includes("*") && !allowedList.includes(candidate)) {
           logVerbose(
-            `Blocked unauthorized sender ${from} (not in allowFrom list)`,
+            `Blocked unauthorized sender ${candidate} (not in allowFrom list)`,
           );
           continue; // Skip processing entirely
         }
@@ -171,13 +202,9 @@ export async function monitorWebInbox(options: {
       const timestamp = msg.messageTimestamp
         ? Number(msg.messageTimestamp) * 1000
         : undefined;
-      const unwrapped = unwrapMessage(
+      const mentionedJids = extractMentionedJids(
         msg.message as proto.IMessage | undefined,
       );
-      const mentionedJids =
-        unwrapped?.extendedTextMessage?.contextInfo?.mentionedJid ??
-        unwrapped?.extendedTextMessage?.contextInfo?.quotedMessage
-          ?.extendedTextMessage?.contextInfo?.mentionedJid;
       const senderName = msg.pushName ?? undefined;
       inboundLogger.info(
         {
@@ -204,6 +231,8 @@ export async function monitorWebInbox(options: {
           senderJid: participantJid,
           senderE164: senderE164 ?? undefined,
           senderName,
+          groupSubject,
+          groupParticipants,
           mentionedJids: mentionedJids ?? undefined,
           selfJid,
           selfE164,
@@ -324,6 +353,31 @@ function unwrapMessage(
     return unwrapMessage(message.viewOnceMessageV2.message as proto.IMessage);
   }
   return message;
+}
+
+function extractMentionedJids(
+  rawMessage: proto.IMessage | undefined,
+): string[] | undefined {
+  const message = unwrapMessage(rawMessage);
+  if (!message) return undefined;
+
+  const candidates: (string[] | null | undefined)[] = [
+    message.extendedTextMessage?.contextInfo?.mentionedJid,
+    message.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage
+      ?.contextInfo?.mentionedJid,
+    message.imageMessage?.contextInfo?.mentionedJid,
+    message.videoMessage?.contextInfo?.mentionedJid,
+    message.documentMessage?.contextInfo?.mentionedJid,
+    message.audioMessage?.contextInfo?.mentionedJid,
+    message.stickerMessage?.contextInfo?.mentionedJid,
+    message.buttonsResponseMessage?.contextInfo?.mentionedJid,
+    message.listResponseMessage?.contextInfo?.mentionedJid,
+  ];
+
+  const flattened = candidates.flat().filter((j): j is string => !!j);
+  if (flattened.length === 0) return undefined;
+  // De-dupe
+  return Array.from(new Set(flattened));
 }
 
 export function extractText(

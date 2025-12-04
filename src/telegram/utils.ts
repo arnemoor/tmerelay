@@ -39,8 +39,10 @@ export async function resolveEntity(
  * Telegram IDs are bigint and can exceed Number.MAX_SAFE_INTEGER.
  */
 export function extractUserId(entity: Entity): string {
-  if ("id" in entity && typeof entity.id === "bigint") {
-    return entity.id.toString();
+  // Extract ID as unknown to bypass TypeScript's overly narrow type inference
+  const id = ("id" in entity ? entity.id : null) as unknown;
+  if (typeof id === "bigint") {
+    return id.toString();
   }
   return "0";
 }

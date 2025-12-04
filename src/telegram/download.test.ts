@@ -156,7 +156,7 @@ describe("download", () => {
         body: Readable.from([largeData]),
       } as any);
 
-      let tempPath: string | undefined;
+      let _tempPath: string | undefined;
       try {
         await streamDownloadToTemp("https://example.com/large.bin", 1024);
       } catch {

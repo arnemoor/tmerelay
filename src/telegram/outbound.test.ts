@@ -72,7 +72,7 @@ describe("outbound", () => {
         messageId: "999",
         status: "sent",
         providerMeta: {
-          userId: "12345",
+          jid: "12345",
         },
       });
     });
@@ -174,7 +174,7 @@ describe("outbound", () => {
         messageId: "999",
         status: "sent",
         providerMeta: {
-          userId: "12345",
+          jid: "12345",
         },
       });
     });

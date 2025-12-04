@@ -1,33 +1,12 @@
 # Changelog
 
-## [Unreleased] (will be 2.0.0)
-
-### Breaking Changes
-- **Provider names renamed for clarity:** `web` → `wa-web`, `twilio` → `wa-twilio`, with new `telegram` provider added. This makes the platform (WhatsApp) explicit and enables multi-platform support. Legacy provider names (`web`, `twilio`) still work with deprecation warnings for backward compatibility. Users should update CLI commands, scripts, and documentation to use the new names.
-  - Migration: Replace `--provider web` with `--provider wa-web` and `--provider twilio` with `--provider wa-twilio` in all CLI invocations
-  - Auto-selection (`--provider auto`) now prioritizes: `wa-web` (if logged in) > `telegram` (if logged in) > `wa-twilio` (if configured)
-  - All JSON output now uses new provider names
-  - Error messages updated to reference new provider names
-
-### Major Features
-- **Telegram support (MTProto client):** Full integration with personal Telegram accounts via GramJS library, matching WhatsApp Web's personal automation model.
-  - Phone + SMS + 2FA authentication flow (`warelay login --provider telegram`)
-  - Send/receive text messages and media (up to 2 GB per file)
-  - Auto-reply with typing indicators, reactions, edits, and deletions
-  - Per-sender sessions with Claude/agent integration
-  - Session storage at `~/.warelay/telegram/session/`
-  - `allowFrom` whitelist security model (usernames, phone numbers, or user IDs)
-  - Get API credentials from https://my.telegram.org/apps
-  - See `docs/telegram.md` for comprehensive setup guide
-
-### Documentation
-- **README.md:** Updated provider table to include Telegram, added Telegram quick start section (C), updated media examples, updated environment variables table, and updated provider selection priority
-- **docs/telegram.md:** New comprehensive guide covering setup, CLI usage, features, security model, troubleshooting, configuration examples, comparisons, best practices, and migration paths
-- **.env.example:** Already updated with `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` examples
+## 1.4.0 — 2025-12-03
 
 ### Highlights
 - **Thinking directives & state:** `/t|/think|/thinking <level>` (aliases off|minimal|low|medium|high|max/highest). Inline applies to that message; directive-only message pins the level for the session; `/think:off` clears. Resolution: inline > session override > `inbound.reply.thinkingDefault` > off. Pi/Tau get `--thinking <level>` (except off); other agents append cue words (`think` → `think hard` → `think harder` → `ultrathink`). Heartbeat probe uses `HEARTBEAT /think:high`.
-- **Group chats (web provider):** New `inbound.groupChat` config (requireMention, mentionPatterns, historyLimit). Warelay now listens to WhatsApp groups, only replies when mentioned, injects recent group history into the prompt, and keeps group sessions separate from personal chats; heartbeats are skipped for group threads.
+- **Group chats (web provider):** Warelay now fully supports WhatsApp groups: mention-gated triggers (including image-only @ mentions), recent group history injection, per-group sessions, sender attribution, and a first-turn primer with group subject/member roster; heartbeats are skipped for groups.
+- **Group session primer:** The first turn of a group session now tells the agent it is in a WhatsApp group and lists known members/subject so it can address the right speaker.
+- **Media failures are surfaced:** When a web auto-reply media fetch/send fails (e.g., HTTP 404), we now append a warning to the fallback text so you know the attachment was skipped.
 - **Verbose directives + session hints:** `/v|/verbose on|full|off` mirrors thinking: inline > session > config default. Directive-only replies with an acknowledgement; invalid levels return a hint. When enabled, tool results from JSON-emitting agents (Pi/Tau, etc.) are forwarded as metadata-only `[🛠️ <tool-name> <arg>]` messages (now streamed as they happen), and new sessions surface a `🧭 New session: <id>` hint.
 - **Verbose tool coalescing:** successive tool results of the same tool within ~1s are batched into one `[🛠️ tool] arg1, arg2` message to reduce WhatsApp noise.
 - **Directive confirmations:** Directive-only messages now reply with an acknowledgement (`Thinking level set to high.` / `Thinking disabled.`) and reject unknown levels with a helpful hint (state is unchanged).
@@ -44,6 +23,7 @@
 - Early `allowFrom` filtering prevents decryption errors; same-phone mode supported with echo suppression.
 - All console output is now mirrored into pino logs (still printed to stdout/stderr), so verbose runs keep full traces.
 - `--verbose` now forces log level `trace` (was `debug`) to capture every event.
+- Verbose tool messages now include emoji + args + a short result preview for bash/read/edit/write/attach (derived from RPC tool start/end events).
 
 ### Security / Hardening
 - IPC socket hardened (0700 dir / 0600 socket, no symlinks/foreign owners); `warelay logout` also prunes session store.
@@ -53,6 +33,7 @@
 - Web group chats now bypass the second `allowFrom` check (we still enforce it on the group participant at inbox ingest), so mentioned group messages reply even when the group JID isn’t in your allowlist.
 - `logVerbose` also writes to the configured Pino logger at debug level (without breaking stdout).
 - Group auto-replies now append the triggering sender (`[from: Name (+E164)]`) to the batch body so agents can address the right person in group chats.
+- Media-only pings now pick up mentions inside captions (image/video/etc.), so @-mentions on media-only messages trigger replies.
 - MIME sniffing and redirect handling for downloads/hosted media.
 - Response prefix applied to heartbeat alerts; heartbeat array payloads handled for both providers.
 - Tau RPC typing exposes `signal`/`killed`; NDJSON parsers normalized across agents.

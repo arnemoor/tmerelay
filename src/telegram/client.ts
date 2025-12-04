@@ -22,7 +22,7 @@ export async function createTelegramClient(
     );
   }
 
-  const logger = getChildLogger(
+  const _logger = getChildLogger(
     { module: "telegram-client" },
     { level: verbose ? "info" : "silent" },
   );

@@ -29,7 +29,7 @@ export async function sendTextMessage(
     messageId: result.id.toString(),
     status: "sent",
     providerMeta: {
-      userId: extractUserId(entity),
+      jid: extractUserId(entity),
     },
   };
 }
@@ -153,7 +153,7 @@ export async function sendMediaMessage(
       messageId: result.id.toString(),
       status: "sent",
       providerMeta: {
-        userId: extractUserId(entity),
+        jid: extractUserId(entity),
       },
     };
   } finally {

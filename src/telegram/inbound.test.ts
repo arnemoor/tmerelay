@@ -18,9 +18,7 @@ import {
 
 // Mock telegram events
 vi.mock("telegram/events", () => ({
-  NewMessage: class NewMessage {
-    constructor() {}
-  },
+  NewMessage: class NewMessage {},
 }));
 
 describe("convertTelegramMessage", () => {
@@ -842,13 +840,13 @@ describe("startMessageListener", () => {
 
     mockClient.addEventHandler = vi
       .fn()
-      .mockImplementation((handler, filter) => {
+      .mockImplementation((_handler, filter) => {
         addedFilter = filter;
       });
 
     mockClient.removeEventHandler = vi
       .fn()
-      .mockImplementation((handler, filter) => {
+      .mockImplementation((_handler, filter) => {
         removedFilter = filter;
       });
 

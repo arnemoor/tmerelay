@@ -151,6 +151,9 @@ export async function startWebhook(
 }
 
 function buildTwilioBasicAuth(env: EnvConfig) {
+  if (!env.auth) {
+    throw new Error("Twilio auth configuration is required");
+  }
   if ("authToken" in env.auth) {
     return Buffer.from(`${env.accountSid}:${env.auth.authToken}`).toString(
       "base64",

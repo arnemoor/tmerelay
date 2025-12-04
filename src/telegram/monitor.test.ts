@@ -133,7 +133,7 @@ describe("monitorTelegramProvider", () => {
     });
 
     // Start monitor in background
-    const monitorPromise = monitorTelegramProvider(true, mockRuntime);
+    const _monitorPromise = monitorTelegramProvider(true, mockRuntime);
 
     // Wait a bit for initialization
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -173,7 +173,7 @@ describe("monitorTelegramProvider", () => {
     });
 
     // Start monitor
-    const monitorPromise = monitorTelegramProvider(false, mockRuntime);
+    const _monitorPromise = monitorTelegramProvider(false, mockRuntime);
 
     // Wait for message to be processed
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -234,7 +234,7 @@ describe("monitorTelegramProvider", () => {
     });
 
     // Start monitor
-    const monitorPromise = monitorTelegramProvider(true, mockRuntime);
+    const _monitorPromise = monitorTelegramProvider(true, mockRuntime);
 
     // Wait for processing
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -276,7 +276,7 @@ describe("monitorTelegramProvider", () => {
     });
 
     // Start monitor
-    const monitorPromise = monitorTelegramProvider(false, mockRuntime);
+    const _monitorPromise = monitorTelegramProvider(false, mockRuntime);
 
     // Wait for processing
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -301,7 +301,7 @@ describe("monitorTelegramProvider", () => {
     let capturedOnReplyStart: (() => Promise<void>) | null = null;
 
     // Capture onReplyStart callback
-    (getReplyFromConfig as Mock).mockImplementationOnce(async (ctx, opts) => {
+    (getReplyFromConfig as Mock).mockImplementationOnce(async (_ctx, opts) => {
       capturedOnReplyStart = opts?.onReplyStart;
       return { text: "Test reply" };
     });
@@ -322,7 +322,7 @@ describe("monitorTelegramProvider", () => {
     });
 
     // Start monitor
-    const monitorPromise = monitorTelegramProvider(false, mockRuntime);
+    const _monitorPromise = monitorTelegramProvider(false, mockRuntime);
 
     // Wait for processing
     await new Promise((resolve) => setTimeout(resolve, 50));

@@ -51,6 +51,9 @@ export async function upCommand(
   if (!deps.createClient) {
     throw new Error("Twilio client dependency missing");
   }
+  if (!env.whatsappFrom) {
+    throw new Error("Twilio whatsappFrom configuration is required");
+  }
   const twilioClient = deps.createClient(env);
   const senderSid = await deps.findWhatsappSenderSid(
     twilioClient as unknown as import("../twilio/types.js").TwilioSenderListClient,

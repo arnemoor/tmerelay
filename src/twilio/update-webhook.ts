@@ -11,7 +11,8 @@ export async function findIncomingNumberSid(
   // Look up incoming phone number SID matching the configured WhatsApp number.
   try {
     const env = readEnv();
-    const phone = env.whatsappFrom.replace("whatsapp:", "");
+    // biome-ignore lint/style/noNonNullAssertion: readEnv() validates whatsappFrom is set
+    const phone = env.whatsappFrom!.replace("whatsapp:", "");
     const list = await client.incomingPhoneNumbers.list({
       phoneNumber: phone,
       limit: 1,
@@ -29,7 +30,8 @@ export async function findMessagingServiceSid(
   type IncomingNumberWithService = { messagingServiceSid?: string };
   try {
     const env = readEnv();
-    const phone = env.whatsappFrom.replace("whatsapp:", "");
+    // biome-ignore lint/style/noNonNullAssertion: readEnv() validates whatsappFrom is set
+    const phone = env.whatsappFrom!.replace("whatsapp:", "");
     const list = await client.incomingPhoneNumbers.list({
       phoneNumber: phone,
       limit: 1,

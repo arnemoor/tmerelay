@@ -7,7 +7,7 @@ import { defaultRuntime } from "../runtime.js";
  * Prompt for phone number input.
  */
 export async function promptPhone(
-  runtime: RuntimeEnv = defaultRuntime,
+  _runtime: RuntimeEnv = defaultRuntime,
 ): Promise<string> {
   const rl = readline.createInterface({ input: stdin, output: stdout });
   try {
@@ -24,7 +24,7 @@ export async function promptPhone(
  * Prompt for SMS verification code.
  */
 export async function promptSMSCode(
-  runtime: RuntimeEnv = defaultRuntime,
+  _runtime: RuntimeEnv = defaultRuntime,
 ): Promise<string> {
   const rl = readline.createInterface({ input: stdin, output: stdout });
   try {
@@ -41,7 +41,7 @@ export async function promptSMSCode(
  * Prompt for 2FA password if enabled.
  */
 export async function prompt2FA(
-  runtime: RuntimeEnv = defaultRuntime,
+  _runtime: RuntimeEnv = defaultRuntime,
 ): Promise<string> {
   const rl = readline.createInterface({ input: stdin, output: stdout });
   try {

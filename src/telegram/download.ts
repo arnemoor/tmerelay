@@ -108,7 +108,6 @@ export async function streamDownloadToTemp(
     });
 
     // Pipeline: fetch response -> size tracker -> file write
-    // @ts-expect-error - Node 22 fetch body is web stream, pipeline accepts it
     await pipeline(response.body, trackingStream, writeStream);
 
     const contentType = response.headers.get("content-type") || undefined;
