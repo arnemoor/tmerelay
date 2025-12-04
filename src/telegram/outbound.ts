@@ -49,30 +49,34 @@ export async function sendMediaMessage(
   if (media.buffer) {
     file = media.buffer;
   } else if (media.url) {
-    // Check content length before downloading to prevent OOM
+    // Check content length before downloading (best effort size validation)
     const headResponse = await fetch(media.url, { method: "HEAD" });
     const contentLength = headResponse.headers.get("content-length");
 
     const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
 
-    if (!contentLength) {
-      // Reject when content-length is missing (chunked/CDN without size)
-      // to prevent OOM until streaming is implemented
-      throw new Error(
-        `Cannot download media from ${media.url}: missing Content-Length header. ` +
-          "Large files without size information require streaming support (not yet implemented).",
+    if (contentLength) {
+      const sizeBytes = Number.parseInt(contentLength, 10);
+      if (sizeBytes > maxSize) {
+        throw new Error(
+          `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
+            "Large files require streaming support (not yet implemented).",
+        );
+      }
+    } else {
+      // Warn but proceed when content-length is missing (some CDNs/hosts don't provide it)
+      // User accepts OOM risk for large files without size information
+      console.warn(
+        `⚠️  Downloading media from ${media.url} without Content-Length header. ` +
+          "This may cause out-of-memory errors for large files. " +
+          "Consider using local files or URLs with size headers for large media.",
       );
     }
 
-    const sizeBytes = Number.parseInt(contentLength, 10);
-    if (sizeBytes > maxSize) {
-      throw new Error(
-        `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
-          "Large files require streaming support (not yet implemented).",
-      );
-    }
-
-    // Download URL to buffer (only after size check)
+    // Download URL to buffer
+    // NOTE: This buffers the entire file in memory before sending.
+    // Files larger than ~500MB may cause memory pressure even if under the 2GB limit.
+    // Streaming support (Phase 2) needed to handle large files safely.
     const response = await fetch(media.url);
     if (!response.ok) {
       throw new Error(
