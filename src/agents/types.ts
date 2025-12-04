@@ -29,6 +29,8 @@ export type AgentParseResult = {
   meta?: AgentMeta;
 };
 
+import type { Provider } from "../utils.js";
+
 export type BuildArgsContext = {
   argv: string[];
   bodyIndex: number; // index of prompt/body argument in argv
@@ -40,6 +42,7 @@ export type BuildArgsContext = {
   format?: "text" | "json";
   sessionArgNew?: string[];
   sessionArgResume?: string[];
+  provider?: Provider;
 };
 
 export interface AgentSpec {

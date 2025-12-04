@@ -153,6 +153,7 @@ async function handleInboundMessage(
           // Typing indicator is optional
         }
       },
+      provider: "telegram",
     },
     config,
   );

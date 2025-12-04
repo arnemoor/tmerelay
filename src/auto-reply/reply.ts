@@ -670,6 +670,7 @@ export async function getReplyFromConfig(
         thinkLevel: resolvedThinkLevel,
         verboseLevel: resolvedVerboseLevel,
         onPartialReply: opts?.onPartialReply,
+        provider: opts?.provider,
       });
       const payloadArray = runResult.payloads ?? [];
       const meta = runResult.meta;

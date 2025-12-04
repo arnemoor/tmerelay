@@ -43,6 +43,7 @@ type CommandReplyParams = {
   thinkLevel?: ThinkLevel;
   verboseLevel?: "off" | "on";
   onPartialReply?: (payload: ReplyPayload) => Promise<void> | void;
+  provider?: import("../utils.js").Provider;
 };
 
 export type CommandReplyMeta = {
@@ -394,6 +395,7 @@ export async function runCommandReply(
         systemSent,
         identityPrefix: agentCfg.identityPrefix,
         format: agentCfg.format,
+        provider: params.provider,
       })
     : argv;
 

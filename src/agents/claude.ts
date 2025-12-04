@@ -7,6 +7,7 @@ import {
   parseClaudeJson,
   summarizeClaudeMetadata,
 } from "../auto-reply/claude.js";
+import { buildProviderAwareIdentity } from "../auto-reply/provider-prompt.js";
 import type { AgentMeta, AgentSpec } from "./types.js";
 
 function toMeta(parsed?: ClaudeJsonParseResult): AgentMeta | undefined {
@@ -56,9 +57,11 @@ export const claudeSpec: AgentSpec = {
     }
 
     const shouldPrependIdentity = !(ctx.sendSystemOnce && ctx.systemSent);
+    const identityPrefix = ctx.identityPrefix
+      ?? buildProviderAwareIdentity(ctx.provider, undefined);
     const bodyWithIdentity =
       shouldPrependIdentity && body
-        ? [ctx.identityPrefix ?? CLAUDE_IDENTITY_PREFIX, body]
+        ? [identityPrefix, body]
             .filter(Boolean)
             .join("\n\n")
         : body;

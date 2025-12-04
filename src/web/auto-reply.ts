@@ -784,6 +784,7 @@ export async function monitorWebProvider(
         },
         {
           onReplyStart: latest.sendComposing,
+          provider: "wa-web",
         },
       );
 

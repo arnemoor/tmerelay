@@ -84,6 +84,7 @@ export async function startWebhook(
         },
         {
           onReplyStart: () => sendTypingIndicator(client, runtime, MessageSid),
+          provider: "wa-twilio",
         },
       );
     }
