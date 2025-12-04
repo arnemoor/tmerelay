@@ -18,6 +18,7 @@ export type TemplateContext = MsgContext & {
   BodyStripped?: string;
   SessionId?: string;
   IsNewSession?: string;
+  PROVIDERS?: string;
 };
 
 // Simple {{Placeholder}} interpolation using inbound message context.

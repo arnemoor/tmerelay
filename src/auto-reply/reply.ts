@@ -20,6 +20,7 @@ import { sendTypingIndicator } from "../twilio/typing.js";
 import { type AllowFromProvider, normalizeAllowFromEntry } from "../utils.js";
 import { chunkText } from "./chunk.js";
 import { runCommandReply } from "./command-reply.js";
+import { formatProvidersForTemplate } from "./provider-prompt.js";
 import {
   applyTemplate,
   type MsgContext,
@@ -291,6 +292,7 @@ export async function getReplyFromConfig(
     BodyStripped: bodyStripped ?? ctx.Body,
     SessionId: sessionId,
     IsNewSession: isNewSession ? "true" : "false",
+    PROVIDERS: formatProvidersForTemplate(opts?.provider),
   };
 
   const {

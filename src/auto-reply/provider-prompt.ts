@@ -48,6 +48,36 @@ export function getProviderDisplayName(provider: Provider): string {
 }
 
 /**
+ * Format provider display name with detail for multi-provider context
+ * @param provider - Provider kind
+ * @returns Formatted name like "WhatsApp Web", "WhatsApp (Twilio)", or "Telegram"
+ */
+export function getProviderDisplayNameDetailed(provider: Provider): string {
+  switch (provider) {
+    case "wa-web":
+      return "WhatsApp Web";
+    case "wa-twilio":
+      return "WhatsApp (Twilio)";
+    case "telegram":
+      return "Telegram";
+  }
+}
+
+/**
+ * Format multiple providers as comma-separated list for template expansion
+ * @param providers - Array of providers (or single provider)
+ * @returns Formatted string like "WhatsApp Web, Telegram"
+ */
+export function formatProvidersForTemplate(
+  providers: Provider | Provider[] | undefined,
+): string {
+  if (!providers) return "";
+  const providerArray = Array.isArray(providers) ? providers : [providers];
+  if (providerArray.length === 0) return "";
+  return providerArray.map(getProviderDisplayNameDetailed).join(", ");
+}
+
+/**
  * Build provider-aware identity prefix.
  *
  * Generates a prompt that mentions the correct messenger name (WhatsApp vs Telegram)

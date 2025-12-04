@@ -3,6 +3,8 @@ import {
   buildProviderAwareIdentity,
   getProviderCapabilities,
   getProviderDisplayName,
+  getProviderDisplayNameDetailed,
+  formatProvidersForTemplate,
 } from "./provider-prompt.js";
 
 describe("provider-prompt", () => {
@@ -35,6 +37,47 @@ describe("provider-prompt", () => {
 
     it("returns Telegram for telegram", () => {
       expect(getProviderDisplayName("telegram")).toBe("Telegram");
+    });
+  });
+
+  describe("getProviderDisplayNameDetailed", () => {
+    it("returns WhatsApp Web for wa-web", () => {
+      expect(getProviderDisplayNameDetailed("wa-web")).toBe("WhatsApp Web");
+    });
+
+    it("returns WhatsApp (Twilio) for wa-twilio", () => {
+      expect(getProviderDisplayNameDetailed("wa-twilio")).toBe(
+        "WhatsApp (Twilio)",
+      );
+    });
+
+    it("returns Telegram for telegram", () => {
+      expect(getProviderDisplayNameDetailed("telegram")).toBe("Telegram");
+    });
+  });
+
+  describe("formatProvidersForTemplate", () => {
+    it("formats single provider", () => {
+      expect(formatProvidersForTemplate("wa-web")).toBe("WhatsApp Web");
+      expect(formatProvidersForTemplate("telegram")).toBe("Telegram");
+      expect(formatProvidersForTemplate("wa-twilio")).toBe("WhatsApp (Twilio)");
+    });
+
+    it("formats multiple providers as comma-separated list", () => {
+      expect(formatProvidersForTemplate(["wa-web", "telegram"])).toBe(
+        "WhatsApp Web, Telegram",
+      );
+      expect(
+        formatProvidersForTemplate(["wa-web", "wa-twilio", "telegram"]),
+      ).toBe("WhatsApp Web, WhatsApp (Twilio), Telegram");
+    });
+
+    it("returns empty string for undefined", () => {
+      expect(formatProvidersForTemplate(undefined)).toBe("");
+    });
+
+    it("returns empty string for empty array", () => {
+      expect(formatProvidersForTemplate([])).toBe("");
     });
   });
 
