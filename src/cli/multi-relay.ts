@@ -59,19 +59,11 @@ export async function runMultiProviderRelay(
         const intervalSeconds = opts.twilioInterval ?? 10;
         const lookbackMinutes = opts.twilioLookback ?? 5;
 
-        // monitorTwilio doesn't accept AbortSignal yet, wrap with Promise.race
-        // Use defaults for deps since MonitorDeps is twilio-specific
-        const monitorPromise = monitorTwilio(intervalSeconds, lookbackMinutes, {
+        // monitorTwilio now accepts AbortSignal for immediate shutdown
+        await monitorTwilio(intervalSeconds, lookbackMinutes, {
           runtime,
+          abortSignal: signal,
         });
-
-        await Promise.race([
-          monitorPromise,
-          new Promise<void>((resolve) => {
-            if (signal.aborted) resolve();
-            signal.addEventListener("abort", () => resolve());
-          }),
-        ]);
       }
     } catch (err) {
       if (signal.aborted) return; // Graceful shutdown

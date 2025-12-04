@@ -251,7 +251,7 @@ export async function selectProviders(
     if (await webAuthExists()) {
       available.push("wa-web");
     } else {
-      skipped.push("wa-web (not authenticated)");
+      skipped.push("wa-web (not authenticated - run: warelay login --provider wa-web)");
     }
 
     // Check telegram
@@ -259,7 +259,7 @@ export async function selectProviders(
     if (await telegramAuthExists()) {
       available.push("telegram");
     } else {
-      skipped.push("telegram (not authenticated)");
+      skipped.push("telegram (not authenticated - run: warelay login --provider telegram)");
     }
 
     // Always include wa-twilio if env vars present
@@ -267,13 +267,16 @@ export async function selectProviders(
       readEnv(defaultRuntime, "twilio");
       available.push("wa-twilio");
     } catch {
-      skipped.push("wa-twilio (not configured)");
+      skipped.push("wa-twilio (not configured - set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM in .env)");
     }
 
     if (available.length > 0 && skipped.length > 0) {
       console.log(
-        `ℹ️  Auto-selected ${available.length} provider(s), skipped: ${skipped.join(", ")}`,
+        `ℹ️  Auto-selected ${available.length} provider(s), skipped ${skipped.length}:`,
       );
+      for (const skip of skipped) {
+        console.log(`   • ${skip}`);
+      }
     }
 
     return available;

@@ -5,6 +5,7 @@ import { danger } from "../globals.js";
 import { logDebug, logInfo, logWarn } from "../logger.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { sleep, withWhatsAppPrefix } from "../utils.js";
+import { sleepWithAbort } from "../web/reconnect.js";
 import { createClient } from "./client.js";
 
 type MonitorDeps = {
@@ -38,6 +39,7 @@ type MonitorOptions = {
   maxIterations?: number;
   deps?: MonitorDeps;
   runtime?: RuntimeEnv;
+  abortSignal?: AbortSignal;
 };
 
 const defaultDeps: MonitorDeps = {
@@ -57,6 +59,7 @@ export async function monitorTwilio(
   const deps = opts?.deps ?? defaultDeps;
   const runtime = opts?.runtime ?? defaultRuntime;
   const maxIterations = opts?.maxIterations ?? Infinity;
+  const signal = opts?.abortSignal;
   let backoffMs = 1_000;
 
   const env = deps.readEnv(runtime);
@@ -69,18 +72,20 @@ export async function monitorTwilio(
 
   let lastSeenSid: string | undefined;
   let iterations = 0;
-  while (iterations < maxIterations) {
+  while (iterations < maxIterations && !signal?.aborted) {
     let messages: ListedMessage[] = [];
     try {
       messages =
         (await deps.listRecentMessages(lookbackMinutes, 50, client)) ?? [];
       backoffMs = 1_000; // reset after success
     } catch (err) {
+      if (signal?.aborted) break;
       logWarn(
         `Twilio polling failed (will retry in ${backoffMs}ms): ${String(err)}`,
         runtime,
       );
-      await deps.sleep(backoffMs);
+      await sleepWithAbort(backoffMs, signal);
+      if (signal?.aborted) break;
       backoffMs = Math.min(backoffMs * 2, 10_000);
       continue;
     }
@@ -93,10 +98,15 @@ export async function monitorTwilio(
     await handleMessages(messages, client, lastSeenSid, deps, runtime);
     lastSeenSid = newestFirst.length ? newestFirst[0].sid : lastSeenSid;
     iterations += 1;
-    if (iterations >= maxIterations) break;
-    await deps.sleep(
+    if (iterations >= maxIterations || signal?.aborted) break;
+    await sleepWithAbort(
       Math.max(pollSeconds, DEFAULT_POLL_INTERVAL_SECONDS) * 1000,
+      signal,
     );
+  }
+
+  if (signal?.aborted) {
+    logInfo("📡 Twilio relay stopping...", runtime);
   }
 }
 
