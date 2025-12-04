@@ -304,7 +304,7 @@ export async function selectProviders(
         readEnv(defaultRuntime, "twilio");
         validated.push("wa-twilio");
       } catch {
-        skipped.push("wa-twilio (not configured - set TWILIO env vars in .env)");
+        skipped.push("wa-twilio (not configured - set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM in .env)");
       }
     }
   }

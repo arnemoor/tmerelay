@@ -7,6 +7,7 @@ import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
 import { sleep, withWhatsAppPrefix } from "../utils.js";
 import { sleepWithAbort } from "../web/reconnect.js";
 import { createClient } from "./client.js";
+import { listRecentMessages } from "./messages.js";
 
 type MonitorDeps = {
   autoReplyIfConfigured: typeof autoReplyIfConfigured;
@@ -44,7 +45,7 @@ type MonitorOptions = {
 
 const defaultDeps: MonitorDeps = {
   autoReplyIfConfigured,
-  listRecentMessages: () => Promise.resolve([]),
+  listRecentMessages,
   readEnv,
   createClient,
   sleep,
