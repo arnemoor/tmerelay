@@ -1,5 +1,64 @@
 # Changelog
 
+## [Unreleased] (will be 2.0.0)
+
+### Breaking Changes
+- **Provider naming standardization**: Provider names now use explicit prefixes:
+  - `web` → `wa-web` (WhatsApp Web via Baileys)
+  - `twilio` → `wa-twilio` (WhatsApp Business API via Twilio)
+  - `telegram` → `telegram` (new: Telegram MTProto integration)
+- **Legacy provider names deprecated**: `web` and `twilio` still work with deprecation warnings but will be removed in 3.0.0
+- **Migration guide**: Update `--provider` flags and config `inbound.provider` to use new names
+
+### Major Features
+- **CLAWDIS branding**: Comprehensive rebrand from "warelay" to "CLAWDIS" (CLAW + TARDIS)
+  - New identity: Space lobster time machine 🦞
+  - Updated documentation, prompts, and user-facing strings
+  - Binary still named `warelay` on npm (rebranding in progress)
+- **Telegram integration**: Full Telegram support via MTProto (GramJS)
+  - Personal account login (not bot API)
+  - Session persistence with dual-path support (`~/.clawdis/telegram` preferred, `~/.warelay/telegram` fallback)
+  - Media download/upload with streaming (2GB limit)
+  - Reply detection and threading
+  - Phone authentication flow
+- **Multi-provider concurrent relay**: Run multiple providers simultaneously
+  - `--providers wa-web,telegram` flag for concurrent listening
+  - `--provider auto` mode detects all authenticated providers
+  - Graceful shutdown with AbortController
+  - Per-provider error isolation (one failure doesn't crash others)
+  - Independent message processing (no cross-provider deduplication)
+- **Provider-aware prompts**: Dynamic auto-reply prompts based on active provider
+  - Correct messenger name (WhatsApp vs Telegram)
+  - Accurate media limits (5MB/64MB/2GB based on provider)
+  - `{{PROVIDERS}}` template placeholder in sessionIntro
+  - User override via `agent.identityPrefix` still supported
+
+### Documentation
+- **New comprehensive docs**:
+  - `docs/agents.md` - Agent integration guide
+  - `docs/configuration.md` - Complete config reference
+  - `docs/security.md` - Security model and best practices
+  - `docs/troubleshooting.md` - Common issues and solutions
+  - `docs/lore.md` - The CLAWDIS origin story 🦞
+  - `docs/telegram-setup.md` - Telegram integration guide
+- **Updated README**: CLAWDIS branding, provider overview table, quick start examples
+- **Architecture docs**: Provider abstraction layer, Telegram integration design
+
+### Implementation Details
+- **Provider abstraction**: Unified `Provider` type (`wa-web | wa-twilio | telegram`)
+- **Capabilities system**: Provider-specific limits and features
+- **Dual-path configuration**: `~/.clawdis` preferred, `~/.warelay` fallback for backward compatibility
+- **Template expansion**: `{{PROVIDERS}}` → "WhatsApp Web, Telegram" in sessionIntro
+- **Prompt generation**: `buildProviderAwareIdentity()` utility with provider context
+
+### Testing
+- 559 tests passing (up from 521)
+- New test coverage:
+  - Template expansion with `{{PROVIDERS}}` placeholder (8 tests)
+  - Provider name formatting utilities (7 tests)
+  - Dual-path session resolution
+  - Multi-provider relay coordination
+
 ## 1.4.0 — 2025-12-03
 
 ### Highlights
@@ -12,9 +71,9 @@
 - **Directive confirmations:** Directive-only messages now reply with an acknowledgement (`Thinking level set to high.` / `Thinking disabled.`) and reject unknown levels with a helpful hint (state is unchanged).
 - **Pi/Tau stability:** RPC replies buffered until the assistant turn finishes; parsers return consistent `texts[]`; web auto-replies keep a warm Tau RPC process to avoid cold starts.
 - **Claude prompt flow:** One-time `sessionIntro` with per-message `/think:high` bodyPrefix; system prompt always sent on first turn even with `sendSystemOnce`.
-- **Heartbeat UX:** Backpressure skips reply heartbeats while other commands run; skips don’t refresh session `updatedAt`; web/Twilio heartbeats normalize array payloads and optional `heartbeatCommand`.
+- **Heartbeat UX:** Backpressure skips reply heartbeats while other commands run; skips don't refresh session `updatedAt`; web/Twilio heartbeats normalize array payloads and optional `heartbeatCommand`.
 - **Control via WhatsApp:** Send `/restart` to restart the warelay launchd service (`com.steipete.warelay`) from your allowed numbers.
-- **Tau completion signal:** RPC now resolves on Tau’s `agent_end` (or process exit) so late assistant messages aren’t truncated; 5-minute hard cap only as a failsafe.
+- **Tau completion signal:** RPC now resolves on Tau's `agent_end` (or process exit) so late assistant messages aren't truncated; 5-minute hard cap only as a failsafe.
 
 ### Reliability & UX
 - Outbound chunking prefers newlines/word boundaries and enforces caps (1600 WhatsApp/Twilio, 4000 web).
@@ -30,7 +89,7 @@
 - Media server blocks symlinks and enforces path containment; logging rotates daily and prunes >24h.
 
 ### Bug Fixes
-- Web group chats now bypass the second `allowFrom` check (we still enforce it on the group participant at inbox ingest), so mentioned group messages reply even when the group JID isn’t in your allowlist.
+- Web group chats now bypass the second `allowFrom` check (we still enforce it on the group participant at inbox ingest), so mentioned group messages reply even when the group JID isn't in your allowlist.
 - `logVerbose` also writes to the configured Pino logger at debug level (without breaking stdout).
 - Group auto-replies now append the triggering sender (`[from: Name (+E164)]`) to the batch body so agents can address the right person in group chats.
 - Media-only pings now pick up mentions inside captions (image/video/etc.), so @-mentions on media-only messages trigger replies.
@@ -46,7 +105,7 @@
 
 ### Highlights
 - **Pluggable agents (Claude, Pi, Codex, Opencode):** `inbound.reply.agent` selects CLI/parser; per-agent argv builders and NDJSON parsers enable swapping without template changes.
-- **Safety stop words:** `stop|esc|abort|wait|exit` immediately reply “Agent was aborted.” and mark the session so the next prompt is prefixed with an abort reminder.
+- **Safety stop words:** `stop|esc|abort|wait|exit` immediately reply "Agent was aborted." and mark the session so the next prompt is prefixed with an abort reminder.
 - **Agent session reliability:** Only Claude returns a stable `session_id`; others may reset between runs.
 
 ### Bug Fixes
@@ -82,7 +141,7 @@
 ## 1.2.0 — 2025-11-27
 
 ### Changes
-- Heartbeat interval default 10m for command mode; prompt `HEARTBEAT /think:high`; skips don’t refresh session; session `heartbeatIdleMinutes` support.
+- Heartbeat interval default 10m for command mode; prompt `HEARTBEAT /think:high`; skips don't refresh session; session `heartbeatIdleMinutes` support.
 - Heartbeat tooling: `--session-id`, `--heartbeat-now`, relay helpers `relay:heartbeat` and `relay:heartbeat:tmux`.
 - Prompt structure: `sessionIntro` plus per-message `/think:high`; session idle up to 7 days.
 - Thinking directives: `/think:<level>`; Pi uses `--thinking`; others append cue; `/think:off` no-op.

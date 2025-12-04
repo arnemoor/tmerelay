@@ -1,4 +1,4 @@
-# 🦞 CLAWDIS — WhatsApp Gateway for AI Agents
+# 🦞 CLAWDIS — Multi-Platform Gateway for AI Agents
 
 <p align="center">
   <img src="docs/whatsapp-clawd.jpg" alt="CLAWDIS" width="400">
@@ -14,12 +14,12 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-**CLAWDIS** (formerly Warelay) is a WhatsApp-to-AI gateway. Send a message, get an AI response. It's like having a genius lobster in your pocket 24/7.
+**CLAWDIS** (formerly Warelay) is a multi-platform messaging gateway for AI agents. Send a message via WhatsApp or Telegram, get an AI response. It's like having a genius lobster in your pocket 24/7.
 
 ```
 ┌─────────────┐      ┌──────────┐      ┌─────────────┐
 │  WhatsApp   │ ───▶ │ CLAWDIS  │ ───▶ │  AI Agent   │
-│  (You)      │ ◀─── │  🦞⏱️💙   │ ◀─── │ (Tau/Claude)│
+│  Telegram   │ ◀─── │  🦞⏱️💙   │ ◀─── │ (Tau/Claude)│
 └─────────────┘      └──────────┘      └─────────────┘
 ```
 
@@ -31,29 +31,82 @@ Because every space lobster needs a time-and-space machine. The Doctor has a TAR
 
 ## Features
 
-- 📱 **WhatsApp Integration** — Personal WhatsApp Web or Twilio
+- 📱 **Multi-Platform** — WhatsApp Web, WhatsApp Business (Twilio), Telegram
 - 🤖 **AI Agent Gateway** — Works with Tau/Pi, Claude CLI, Codex, Gemini
 - 💬 **Session Management** — Per-sender conversation context
 - 🔔 **Heartbeats** — Periodic check-ins for proactive AI
-- 👥 **Group Chat Support** — Mention-based triggering
+- 👥 **Group Chat Support** — Mention-based triggering (WhatsApp)
 - 📎 **Media Support** — Images, audio, documents, voice notes
 - 🎤 **Voice Transcription** — Whisper integration
 - 🔧 **Tool Streaming** — Real-time display (💻📄✍️📝)
+- 🎯 **Multi-Provider Relay** — Listen to multiple platforms simultaneously
+
+## Provider Overview
+
+| Provider | Type | Authentication | Media Limit | Status |
+|----------|------|----------------|-------------|--------|
+| **wa-web** | WhatsApp Web (personal) | QR code scan | 64MB | ✅ Stable |
+| **wa-twilio** | WhatsApp Business API | Twilio credentials | 5MB | ✅ Stable |
+| **telegram** | Telegram (personal) | Phone + code | 2GB | ✅ Stable |
+
+**Note**: Legacy provider names `web` and `twilio` are deprecated but still work with warnings.
 
 ## Quick Start
+
+### A) WhatsApp Web (Recommended)
 
 ```bash
 # Install
 npm install -g warelay  # (still warelay on npm for now)
 
 # Link your WhatsApp
-clawdis login
+clawdis login --provider wa-web
 
 # Send a message
-clawdis send --to +1234567890 --message "Hello from the CLAWDIS!"
+clawdis send --provider wa-web --to +1234567890 --message "Hello!"
 
 # Start the relay
-clawdis relay --verbose
+clawdis relay --provider wa-web --verbose
+```
+
+### B) WhatsApp Business (Twilio)
+
+```bash
+# Set environment variables
+export TWILIO_ACCOUNT_SID=ACxxxxx
+export TWILIO_AUTH_TOKEN=xxxxx
+export TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+
+# Start the relay
+clawdis relay --provider wa-twilio
+```
+
+### C) Telegram
+
+```bash
+# Set Telegram API credentials
+export TELEGRAM_API_ID=12345678
+export TELEGRAM_API_HASH=abcdef1234567890abcdef1234567890
+
+# Login with phone number
+clawdis login --provider telegram
+# Follow the prompts: enter phone, then verification code
+
+# Send a message
+clawdis send --provider telegram --to +1234567890 --message "Hello!"
+
+# Start the relay
+clawdis relay --provider telegram --verbose
+```
+
+### D) Multi-Provider (All Platforms)
+
+```bash
+# Listen to WhatsApp Web + Telegram simultaneously
+clawdis relay --providers wa-web,telegram --verbose
+
+# Auto mode: listen to all authenticated providers
+clawdis relay --provider auto
 ```
 
 ## Configuration
@@ -63,7 +116,7 @@ Create `~/.clawdis/clawdis.json`:
 ```json5
 {
   inbound: {
-    allowFrom: ["+1234567890"],
+    allowFrom: ["+1234567890", "@telegram_username"],
     reply: {
       mode: "command",
       command: ["tau", "--mode", "json", "{{BodyStripped}}"],
@@ -77,6 +130,35 @@ Create `~/.clawdis/clawdis.json`:
 }
 ```
 
+**Provider-specific features**:
+
+```json5
+{
+  inbound: {
+    reply: {
+      // Use {{PROVIDERS}} placeholder for dynamic provider names
+      sessionIntro: "You are connected to {{PROVIDERS}}. Keep responses concise.",
+
+      // Provider-aware prompts automatically adjust:
+      // - WhatsApp: "Keep WhatsApp replies under ~1500 characters. Media limit: 64MB."
+      // - Telegram: "Keep Telegram replies under ~1500 characters. Media limit: 2GB."
+    }
+  }
+}
+```
+
+## Environment Variables
+
+| Variable | Provider | Required | Description |
+|----------|----------|----------|-------------|
+| `TWILIO_ACCOUNT_SID` | wa-twilio | Yes | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | wa-twilio | Yes | Twilio auth token |
+| `TWILIO_WHATSAPP_FROM` | wa-twilio | Yes | WhatsApp number (format: `whatsapp:+14155238886`) |
+| `TELEGRAM_API_ID` | telegram | Yes | Telegram API ID from [my.telegram.org](https://my.telegram.org) |
+| `TELEGRAM_API_HASH` | telegram | Yes | Telegram API hash from [my.telegram.org](https://my.telegram.org) |
+
+**Note**: WhatsApp Web (wa-web) uses QR code authentication - no environment variables needed.
+
 ## Documentation
 
 - [Configuration Guide](./docs/configuration.md)
@@ -84,7 +166,39 @@ Create `~/.clawdis/clawdis.json`:
 - [Group Chats](./docs/group-messages.md)
 - [Security](./docs/security.md)
 - [Troubleshooting](./docs/troubleshooting.md)
+- [Telegram Setup](./docs/telegram-setup.md)
 - [The Lore](./docs/lore.md) 🦞
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `clawdis login --provider <kind>` | Authenticate with a provider (wa-web, telegram) |
+| `clawdis send --provider <kind>` | Send a message |
+| `clawdis relay --provider <kind>` | Start auto-reply loop (single provider) |
+| `clawdis relay --providers <kinds>` | Start multi-provider relay (e.g., `wa-web,telegram`) |
+| `clawdis relay --provider auto` | Start relay with all authenticated providers |
+| `clawdis status` | Show recent messages |
+| `clawdis heartbeat` | Trigger a heartbeat |
+| `clawdis logout --provider <kind>` | Clear provider authentication |
+
+## Migration from Legacy Provider Names
+
+If you're using the old provider names in scripts or configs:
+
+| Old Name | New Name | Status |
+|----------|----------|--------|
+| `web` | `wa-web` | Deprecated (still works with warning) |
+| `twilio` | `wa-twilio` | Deprecated (still works with warning) |
+
+**Update your commands**:
+```bash
+# Old (deprecated)
+clawdis relay --provider web
+
+# New (recommended)
+clawdis relay --provider wa-web
+```
 
 ## Clawd
 
@@ -94,34 +208,6 @@ CLAWDIS was built for **Clawd**, a space lobster AI assistant. See the full setu
 - 📜 **Clawd's Soul:** [soul.md](https://soul.md)
 - 👨‍💻 **Peter's Blog:** [steipete.me](https://steipete.me)
 - 🐦 **Twitter:** [@steipete](https://twitter.com/steipete)
-
-## Providers
-
-### WhatsApp Web (Recommended)
-```bash
-clawdis login      # Scan QR code
-clawdis relay      # Start listening
-```
-
-### Twilio
-```bash
-# Set environment variables
-export TWILIO_ACCOUNT_SID=...
-export TWILIO_AUTH_TOKEN=...
-export TWILIO_WHATSAPP_FROM=whatsapp:+1234567890
-
-clawdis relay --provider twilio
-```
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `clawdis login` | Link WhatsApp Web via QR |
-| `clawdis send` | Send a message |
-| `clawdis relay` | Start auto-reply loop |
-| `clawdis status` | Show recent messages |
-| `clawdis heartbeat` | Trigger a heartbeat |
 
 ## Credits
 
