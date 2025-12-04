@@ -109,7 +109,7 @@ Install from npm (global): `npm install -g warelay` (Node 22+). Then choose **on
 ## Providers
 - **WhatsApp Twilio (`--provider wa-twilio`, default):** needs `.env` creds + WhatsApp-enabled number; supports delivery tracking, polling, webhooks, and auto-reply typing indicators.
 - **WhatsApp Web (`--provider wa-web`):** uses your personal WhatsApp via Baileys; supports send/receive + auto-reply, but no delivery-status wait; cache lives in `~/.warelay/credentials/` (rerun `login` if logged out). If the WhatsApp Web socket closes, the relay exits instead of pivoting to WhatsApp Twilio.
-- **Telegram (`--provider telegram`):** uses your personal Telegram via GramJS (MTProto); supports send/receive + auto-reply with typing indicators, reactions, edits, and deletions; session stored at `~/.warelay/telegram/session/` (rerun `login --provider telegram` if logged out). Requires `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in `.env` (get from https://my.telegram.org/apps).
+- **Telegram (`--provider telegram`):** uses your personal Telegram via GramJS (MTProto); supports send/receive + auto-reply with typing indicators and replies; session stored at `~/.warelay/telegram/session/` (rerun `login --provider telegram` if logged out). Requires `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` in `.env` (get from https://my.telegram.org/apps). Note: reactions/edits/deletes not yet exposed via Provider interface.
 - **Auto-select (`relay` only):** `--provider auto` picks WhatsApp Web when a cache exists at start, then Telegram if its session exists, otherwise WhatsApp Twilio polling. It will not swap providers mid-run if the session drops.
 
 **Legacy aliases:** `twilio` and `web` still work but are deprecated. Use `wa-twilio` and `wa-web` instead.

@@ -120,17 +120,19 @@ Removes the saved session from `~/.warelay/telegram/session/`.
 | Feature | Supported | Notes |
 |---------|-----------|-------|
 | Text messages | ✅ | Full UTF-8 support, including emoji |
-| Media (images, video, audio) | ✅ | Up to 2 GB per file |
+| Media (images, video, audio) | ✅ | Up to 2 GB per file (requires Content-Length header) |
 | Typing indicators | ✅ | Shows "typing..." while processing |
-| Read receipts | ✅ | Automatic when messages are received |
-| Reactions | ✅ | Emoji reactions supported |
 | Replies | ✅ | Reply to specific messages |
-| Editing | ✅ | Edit previously sent messages |
-| Deleting | ✅ | Delete sent messages |
 | Message formatting | ✅ | Markdown and HTML formatting |
 | Max media size | 2 GB | Much higher than WhatsApp (100 MB) |
 | Delivery receipts | ❌ | MTProto limitation (no sent/delivered/read states) |
+| Read receipts | ❌ | Not exposed via Provider interface |
+| Reactions | ❌ | Not exposed via Provider interface (requires peer context) |
+| Editing | ❌ | Not exposed via Provider interface (requires peer context) |
+| Deleting | ❌ | Not exposed via Provider interface (requires peer context) |
 | Group chats | ⚠️ | Not yet implemented (planned) |
+
+**Note on advanced features:** While Telegram's MTProto API supports reactions, editing, and deleting messages, these features require maintaining peer context (chat/user entity references) which the current Provider interface architecture doesn't support. These features may be added in a future Provider interface revision.
 
 ## Security Model
 
@@ -314,13 +316,15 @@ warelay login --provider telegram
 | **Protocol** | WebSocket (Baileys) | HTTP (Twilio API) | MTProto (GramJS) |
 | **Max file size** | 100 MB | 5 MB | 2 GB |
 | **Typing indicators** | ✅ | ✅ | ✅ |
-| **Read receipts** | ✅ | ❌ | ✅ |
+| **Read receipts** | ✅ | ❌ | ❌ |
 | **Delivery tracking** | Limited | Full | Limited |
 | **Group chats** | ✅ | ✅ | ⚠️ (planned) |
-| **Reactions** | ❌ | ❌ | ✅ |
-| **Edit messages** | ❌ | ❌ | ✅ |
-| **Delete messages** | ✅ | ✅ | ✅ |
+| **Reactions** | ❌ | ❌ | ❌ |
+| **Edit messages** | ❌ | ❌ | ❌ |
+| **Delete messages** | ✅ | ✅ | ❌ |
 | **Cost** | Free | Pay per message | Free |
+
+**Note:** Telegram's MTProto API technically supports reactions, edits, and deletes, but these are not exposed via the Provider interface (requires peer context architecture changes).
 
 ## Best Practices
 

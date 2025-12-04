@@ -382,6 +382,28 @@ describe("outbound", () => {
       );
     });
 
+    it("throws error when content-length header is missing", async () => {
+      // Mock HEAD request without content-length
+      const mockHeadResponse = {
+        headers: {
+          get: vi.fn(() => null), // No content-length header
+        },
+      };
+
+      vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
+
+      const media: ProviderMedia = {
+        type: "image",
+        url: "https://example.com/chunked.jpg",
+      };
+
+      await expect(
+        sendMediaMessage(mockClient as TelegramClient, "@testuser", "", media),
+      ).rejects.toThrow(
+        "Cannot download media from https://example.com/chunked.jpg: missing Content-Length header",
+      );
+    });
+
     it("throws error when URL download fails", async () => {
       // Mock HEAD request success
       const mockHeadResponse = {
