@@ -8,10 +8,10 @@ export type AuthMode =
   | { accountSid: string; apiKey: string; apiSecret: string };
 
 export type EnvConfig = {
-  accountSid: string;
-  whatsappFrom: string;
+  accountSid?: string;
+  whatsappFrom?: string;
   whatsappSenderSid?: string;
-  auth: AuthMode;
+  auth?: AuthMode;
   telegram?: {
     apiId: number;
     apiHash: string;
@@ -147,28 +147,33 @@ export function readEnv(
     TELEGRAM_API_HASH: telegramApiHash,
   } = parsed.data;
 
-  // For Telegram-only mode, Twilio fields may be absent
-  let auth: AuthMode | undefined;
-  if (apiKey && apiSecret && accountSid) {
-    auth = { accountSid, apiKey, apiSecret };
-  } else if (authToken && accountSid) {
-    auth = { accountSid, authToken };
-  } else if (provider === "telegram") {
-    // Telegram-only mode - no Twilio auth needed
-    auth = undefined;
-  } else {
-    runtime.error("Missing Twilio auth configuration");
+  // Build config based on provider mode
+  const config: EnvConfig = {};
+
+  // Add Twilio fields if present
+  if (accountSid && whatsappFrom) {
+    config.accountSid = accountSid;
+    config.whatsappFrom = whatsappFrom;
+    config.whatsappSenderSid = whatsappSenderSid;
+
+    // Build auth
+    if (apiKey && apiSecret) {
+      config.auth = { accountSid, apiKey, apiSecret };
+    } else if (authToken) {
+      config.auth = { accountSid, authToken };
+    } else if (provider !== "telegram") {
+      runtime.error("Missing Twilio auth configuration");
+      runtime.exit(1);
+      throw new Error("unreachable");
+    }
+  } else if (provider === "twilio" || provider === "all") {
+    // Twilio required but missing
+    runtime.error("Missing Twilio configuration (TWILIO_ACCOUNT_SID, TWILIO_WHATSAPP_FROM)");
     runtime.exit(1);
     throw new Error("unreachable");
   }
 
-  const config: EnvConfig = {
-    accountSid: accountSid || "",
-    whatsappFrom: whatsappFrom || "",
-    whatsappSenderSid,
-    auth: auth || { accountSid: "", authToken: "" }, // Placeholder for Telegram-only
-  };
-
+  // Add Telegram fields if present
   if (telegramApiId && telegramApiHash) {
     config.telegram = {
       apiId: Number.parseInt(telegramApiId, 10),

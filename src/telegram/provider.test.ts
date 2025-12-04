@@ -51,7 +51,7 @@ describe("TelegramProvider", () => {
     it("has correct capabilities", () => {
       expect(provider.capabilities).toEqual(capabilities);
       expect(provider.capabilities.supportsDeliveryReceipts).toBe(false);
-      expect(provider.capabilities.supportsReadReceipts).toBe(true);
+      expect(provider.capabilities.supportsReadReceipts).toBe(false);
       expect(provider.capabilities.supportsTypingIndicator).toBe(true);
       expect(provider.capabilities.maxMediaSize).toBe(2 * 1024 * 1024 * 1024);
     });

@@ -124,46 +124,46 @@ describe("utils", () => {
   });
 
   describe("extractUserId", () => {
-    it("extracts user ID from User entity", () => {
+    it("extracts user ID from User entity as string", () => {
       const mockUser = new Api.User({
         id: BigInt(12345),
         firstName: "Test",
       });
 
       const userId = extractUserId(mockUser);
-      expect(userId).toBe(12345);
+      expect(userId).toBe("12345");
     });
 
-    it("extracts user ID from Chat entity", () => {
+    it("extracts user ID from Chat entity as string", () => {
       const mockChat = new Api.Chat({
         id: BigInt(67890),
         title: "Test Chat",
       });
 
       const userId = extractUserId(mockChat);
-      expect(userId).toBe(67890);
+      expect(userId).toBe("67890");
     });
 
-    it("returns 0 for entity without id field", () => {
+    it("returns '0' for entity without id field", () => {
       const mockEntity = {} as Api.User;
       const userId = extractUserId(mockEntity);
-      expect(userId).toBe(0);
+      expect(userId).toBe("0");
     });
 
-    it("returns 0 for entity with non-bigint id", () => {
+    it("returns '0' for entity with non-bigint id", () => {
       const mockEntity = { id: "12345" } as unknown as Api.User;
       const userId = extractUserId(mockEntity);
-      expect(userId).toBe(0);
+      expect(userId).toBe("0");
     });
 
-    it("handles large user IDs", () => {
+    it("handles large user IDs without precision loss", () => {
       const mockUser = new Api.User({
-        id: BigInt(999999999999),
+        id: BigInt("9007199254740992"), // MAX_SAFE_INTEGER + 1
         firstName: "Test",
       });
 
       const userId = extractUserId(mockUser);
-      expect(userId).toBe(999999999999);
+      expect(userId).toBe("9007199254740992");
     });
   });
 });

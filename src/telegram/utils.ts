@@ -35,10 +35,12 @@ export async function resolveEntity(
 }
 
 /**
- * Extract user ID from entity.
+ * Extract user ID from entity as string to avoid precision loss.
+ * Telegram IDs are bigint and can exceed Number.MAX_SAFE_INTEGER.
  */
-export function extractUserId(entity: Entity): number {
-  return "id" in entity && typeof entity.id === "bigint"
-    ? Number(entity.id)
-    : 0;
+export function extractUserId(entity: Entity): string {
+  if ("id" in entity && typeof entity.id === "bigint") {
+    return entity.id.toString();
+  }
+  return "0";
 }
