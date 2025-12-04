@@ -422,34 +422,38 @@ Output includes:
 3. **No secret chats** - End-to-end encrypted "Secret Chats" are not supported by GramJS
 4. **Rate limits** - Personal accounts have rate limits (use with moderation)
 
-### Media Memory Limitations
+### Media Handling
 
-**Current implementation buffers entire files in memory before sending.**
+**Streaming Implementation**
 
-- Files up to ~100MB: Generally safe
-- Files 100-500MB: May cause memory pressure on constrained systems
-- Files >500MB: High risk of out-of-memory errors
-- Files >2GB: Hard limit enforced (when Content-Length available)
+Media downloads use streaming to temporary files, eliminating memory buffering:
+
+- Files downloaded to `~/.warelay/telegram-temp`
+- No memory spike regardless of file size
+- Automatic cleanup after send (success or failure)
+- Orphaned files cleaned on process restart (1 hour TTL)
+
+**Disk Usage:**
+- Temp file created during download
+- Cleaned immediately after send
+- Max disk usage: size of largest concurrent download
+
+**Performance:**
+- No memory overhead for large files
+- Same download speed as before
+- Proper backpressure handling via Node.js streams
 
 **Production Safety:**
-Set `TELEGRAM_MAX_MEDIA_MB` environment variable to enforce a lower limit:
+Set `TELEGRAM_MAX_MEDIA_MB` to limit disk usage:
 ```bash
-# Limit to 100MB for production safety
-TELEGRAM_MAX_MEDIA_MB=100 warelay relay --provider telegram
+# Limit to 500MB for production
+TELEGRAM_MAX_MEDIA_MB=500 warelay relay --provider telegram
 ```
 
 **Note:** The limit is read at process startup. Changing the env var requires restarting the relay.
 
-**Recommendations:**
-- Use local file paths when possible (more efficient than URLs)
-- For production deployments, set `TELEGRAM_MAX_MEDIA_MB=100` or similar
-- For large files, ensure adequate system memory (2x file size)
-- URLs without Content-Length headers will show warning but proceed
-- Streaming support planned for Phase 2 to eliminate memory buffering
-
 ### Known Issues
 
-- Very large media files (>500 MB) may cause memory spikes or OOM errors
 - Session may expire if not used for extended periods (re-login required)
 - Username changes won't be reflected in `allowFrom` until relay restart
 

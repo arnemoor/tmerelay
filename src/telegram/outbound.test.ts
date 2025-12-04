@@ -6,6 +6,7 @@ import type { TelegramClient } from "telegram";
 import { Api } from "telegram";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderMedia, SendOptions } from "../providers/base/types.js";
+import * as downloadModule from "./download.js";
 import {
   sendMediaMessage,
   sendTextMessage,
@@ -15,6 +16,9 @@ import * as utilsModule from "./utils.js";
 
 // Mock utils
 vi.mock("./utils.js");
+
+// Mock download module
+vi.mock("./download.js");
 
 // Mock global fetch
 global.fetch = vi.fn();
@@ -329,7 +333,8 @@ describe("outbound", () => {
         id: 999,
       };
 
-      const mockImageData = new Uint8Array([1, 2, 3, 4]);
+      const mockTempPath = "/tmp/test-image.tmp";
+      const mockCleanup = vi.fn().mockResolvedValue(undefined);
 
       // Mock HEAD request for size check
       const mockHeadResponse = {
@@ -340,16 +345,15 @@ describe("outbound", () => {
           }),
         },
       };
+      vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
 
-      // Mock GET request for actual download
-      const mockGetResponse = {
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
-      };
-
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce(mockHeadResponse as any) // HEAD request
-        .mockResolvedValueOnce(mockGetResponse as any); // GET request
+      // Mock streamDownloadToTemp
+      vi.mocked(downloadModule.streamDownloadToTemp).mockResolvedValue({
+        tempPath: mockTempPath,
+        size: 1024,
+        contentType: "image/jpeg",
+        cleanup: mockCleanup,
+      });
 
       vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
 
@@ -370,16 +374,18 @@ describe("outbound", () => {
         "https://example.com/image.jpg",
         { method: "HEAD" },
       );
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(downloadModule.streamDownloadToTemp).toHaveBeenCalledWith(
         "https://example.com/image.jpg",
+        expect.any(Number),
       );
       expect(mockClient.sendFile).toHaveBeenCalledWith(
         mockEntity,
         expect.objectContaining({
-          file: expect.any(Buffer),
+          file: mockTempPath,
           caption: "Look at this",
         }),
       );
+      expect(mockCleanup).toHaveBeenCalledTimes(1);
     });
 
     it("warns but proceeds when content-length header is missing", async () => {
@@ -387,7 +393,8 @@ describe("outbound", () => {
         id: 999,
       };
 
-      const mockImageData = new Uint8Array([1, 2, 3, 4]);
+      const mockTempPath = "/tmp/test-chunked.tmp";
+      const mockCleanup = vi.fn().mockResolvedValue(undefined);
 
       // Mock HEAD request without content-length
       const mockHeadResponse = {
@@ -395,20 +402,17 @@ describe("outbound", () => {
           get: vi.fn(() => null), // No content-length header
         },
       };
+      vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
 
-      // Mock GET request for download
-      const mockGetResponse = {
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
-      };
-
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce(mockHeadResponse as any)
-        .mockResolvedValueOnce(mockGetResponse as any);
+      // Mock streamDownloadToTemp
+      vi.mocked(downloadModule.streamDownloadToTemp).mockResolvedValue({
+        tempPath: mockTempPath,
+        size: 1024,
+        contentType: "image/jpeg",
+        cleanup: mockCleanup,
+      });
 
       vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
-
-      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation();
 
       const media: ProviderMedia = {
         type: "image",
@@ -422,12 +426,9 @@ describe("outbound", () => {
         media,
       );
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("without Content-Length header"),
-      );
+      // No warning expected now - download proceeds without size check
       expect(result.messageId).toBe("999");
-
-      consoleWarnSpy.mockRestore();
+      expect(mockCleanup).toHaveBeenCalledTimes(1);
     });
 
     it("falls back to GET when HEAD request fails", async () => {
@@ -435,19 +436,21 @@ describe("outbound", () => {
         id: 999,
       };
 
-      const mockImageData = new Uint8Array([1, 2, 3, 4]);
+      const mockTempPath = "/tmp/test-no-head.tmp";
+      const mockCleanup = vi.fn().mockResolvedValue(undefined);
 
       // Mock HEAD request failure (host blocks HEAD)
       vi.mocked(global.fetch).mockRejectedValueOnce(
         new Error("Method Not Allowed"),
       );
 
-      // Mock GET request succeeds
-      const mockGetResponse = {
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
-      };
-      vi.mocked(global.fetch).mockResolvedValueOnce(mockGetResponse as any);
+      // Mock streamDownloadToTemp
+      vi.mocked(downloadModule.streamDownloadToTemp).mockResolvedValue({
+        tempPath: mockTempPath,
+        size: 1024,
+        contentType: "image/jpeg",
+        cleanup: mockCleanup,
+      });
 
       vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
 
@@ -471,6 +474,7 @@ describe("outbound", () => {
       );
       // Should still succeed
       expect(result.messageId).toBe("999");
+      expect(mockCleanup).toHaveBeenCalledTimes(1);
 
       consoleWarnSpy.mockRestore();
     });
@@ -485,16 +489,14 @@ describe("outbound", () => {
           }),
         },
       };
+      vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
 
-      // Mock GET request failure
-      const mockGetResponse = {
-        ok: false,
-        statusText: "Not Found",
-      };
-
-      vi.mocked(global.fetch)
-        .mockResolvedValueOnce(mockHeadResponse as any)
-        .mockResolvedValueOnce(mockGetResponse as any);
+      // Mock streamDownloadToTemp to throw
+      vi.mocked(downloadModule.streamDownloadToTemp).mockRejectedValue(
+        new Error(
+          "Failed to download media from https://example.com/missing.jpg: Not Found",
+        ),
+      );
 
       const media: ProviderMedia = {
         type: "image",
@@ -575,6 +577,144 @@ describe("outbound", () => {
           caption: undefined,
         }),
       );
+    });
+
+    describe("streaming downloads", () => {
+      it("downloads URL to temp file and cleans up after send", async () => {
+        const mockResult = {
+          id: 999,
+        };
+
+        const mockTempPath = "/tmp/test-file.tmp";
+        const mockCleanup = vi.fn().mockResolvedValue(undefined);
+
+        // Mock HEAD request
+        const mockHeadResponse = {
+          headers: {
+            get: vi.fn((name: string) => {
+              if (name === "content-length") return "1024";
+              return null;
+            }),
+          },
+        };
+        vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
+
+        // Mock streamDownloadToTemp
+        vi.mocked(downloadModule.streamDownloadToTemp).mockResolvedValue({
+          tempPath: mockTempPath,
+          size: 1024,
+          contentType: "image/jpeg",
+          cleanup: mockCleanup,
+        });
+
+        vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
+
+        const media: ProviderMedia = {
+          type: "image",
+          url: "https://example.com/test.jpg",
+        };
+
+        await sendMediaMessage(
+          mockClient as TelegramClient,
+          "@testuser",
+          "Streamed image",
+          media,
+        );
+
+        // Verify streamDownloadToTemp called
+        expect(downloadModule.streamDownloadToTemp).toHaveBeenCalledWith(
+          "https://example.com/test.jpg",
+          expect.any(Number),
+        );
+
+        // Verify sendFile called with path (not buffer)
+        expect(mockClient.sendFile).toHaveBeenCalledWith(
+          mockEntity,
+          expect.objectContaining({
+            file: mockTempPath, // String path, not Buffer
+            caption: "Streamed image",
+          }),
+        );
+
+        // Verify cleanup was called
+        expect(mockCleanup).toHaveBeenCalledTimes(1);
+      });
+
+      it("cleans up temp file even when sendFile fails", async () => {
+        const mockTempPath = "/tmp/test-file.tmp";
+        const mockCleanup = vi.fn().mockResolvedValue(undefined);
+
+        // Mock HEAD request
+        const mockHeadResponse = {
+          headers: {
+            get: vi.fn(() => "1024"),
+          },
+        };
+        vi.mocked(global.fetch).mockResolvedValueOnce(mockHeadResponse as any);
+
+        // Mock streamDownloadToTemp
+        vi.mocked(downloadModule.streamDownloadToTemp).mockResolvedValue({
+          tempPath: mockTempPath,
+          size: 1024,
+          contentType: "image/jpeg",
+          cleanup: mockCleanup,
+        });
+
+        // Mock sendFile to fail
+        vi.mocked(mockClient.sendFile).mockRejectedValue(
+          new Error("Network error"),
+        );
+
+        const media: ProviderMedia = {
+          type: "image",
+          url: "https://example.com/test.jpg",
+        };
+
+        await expect(
+          sendMediaMessage(
+            mockClient as TelegramClient,
+            "@testuser",
+            "Failed send",
+            media,
+          ),
+        ).rejects.toThrow("Network error");
+
+        // Verify cleanup was still called despite error
+        expect(mockCleanup).toHaveBeenCalledTimes(1);
+      });
+
+      it("preserves buffer-based media path (backward compat)", async () => {
+        const mockResult = {
+          id: 999,
+        };
+
+        vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
+
+        const media: ProviderMedia = {
+          type: "image",
+          buffer: Buffer.from("test-buffer"),
+          mimeType: "image/jpeg",
+        };
+
+        await sendMediaMessage(
+          mockClient as TelegramClient,
+          "@testuser",
+          "Buffer image",
+          media,
+        );
+
+        // Verify streamDownloadToTemp NOT called for buffers
+        expect(downloadModule.streamDownloadToTemp).not.toHaveBeenCalled();
+
+        // Verify sendFile called with Buffer (not path)
+        expect(mockClient.sendFile).toHaveBeenCalledWith(
+          mockEntity,
+          expect.objectContaining({
+            file: media.buffer,
+            caption: "Buffer image",
+          }),
+        );
+      });
     });
   });
 

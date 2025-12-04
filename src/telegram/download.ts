@@ -93,7 +93,7 @@ export async function streamDownloadToTemp(
     // Use pipeline for automatic backpressure handling
     // Transform stream to track size and enforce limit
     const trackingStream = new Transform({
-      transform(chunk: Buffer, encoding, callback) {
+      transform(chunk: Buffer, _encoding, callback) {
         totalSize += chunk.length;
         if (totalSize > maxSize) {
           callback(
