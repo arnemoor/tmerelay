@@ -355,6 +355,10 @@ Examples:
       "auto | wa-web | wa-twilio | telegram",
       "auto",
     )
+    .option(
+      "--providers <kinds>",
+      "Comma-separated providers for concurrent relay (wa-web,telegram,wa-twilio)",
+    )
     .option("-i, --interval <seconds>", "Polling interval for twilio mode", "5")
     .option(
       "-l, --lookback <minutes>",
@@ -477,6 +481,37 @@ Examples:
       if (webRetryMax !== undefined) reconnect.maxMs = webRetryMax;
       if (Object.keys(reconnect).length > 0) {
         webTuning.reconnect = reconnect;
+      }
+
+      // Check if multi-provider relay requested
+      if (opts.providers) {
+        const providerList = String(opts.providers)
+          .split(",")
+          .map((p) => p.trim())
+          .map((p) => (p === "auto" ? "auto" : normalizeProvider(p)));
+
+        // Import selectProviders and runMultiProviderRelay
+        const { selectProviders } = await import("../web/session.js");
+        const { runMultiProviderRelay } = await import("./multi-relay.js");
+
+        const providers = await selectProviders(
+          providerList as (Provider | "auto")[],
+        );
+
+        if (providers.length === 0) {
+          defaultRuntime.error(
+            "No authenticated providers found. Use --provider or authenticate providers first.",
+          );
+          defaultRuntime.exit(1);
+        }
+
+        const cfg = loadConfig();
+        const deps = createDefaultDeps();
+
+        await runMultiProviderRelay(providers, cfg, deps, {
+          verbose: Boolean(opts.verbose),
+        });
+        return;
       }
 
       const provider = await pickProvider(normalized as Provider | "auto");

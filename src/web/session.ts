@@ -13,6 +13,7 @@ import {
 import qrcode from "qrcode-terminal";
 
 import { SESSION_STORE_DEFAULT } from "../config/sessions.js";
+import { readEnv } from "../env.js";
 import { danger, info, success } from "../globals.js";
 import { getChildLogger } from "../logging.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
@@ -230,4 +231,64 @@ export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
   if (hasTelegram) return "telegram";
 
   return "wa-twilio";
+}
+
+/**
+ * Select multiple providers for concurrent relay.
+ * @param prefs - Array of provider preferences or ['auto']
+ * @returns Array of available providers (1-3 providers)
+ */
+export async function selectProviders(
+  prefs: (Provider | "auto")[],
+): Promise<Provider[]> {
+  // If 'auto' in list, expand to all authenticated providers
+  if (prefs.includes("auto")) {
+    const available: Provider[] = [];
+
+    // Check wa-web
+    if (await webAuthExists()) {
+      available.push("wa-web");
+    }
+
+    // Check telegram
+    const { telegramAuthExists } = await import("../telegram/session.js");
+    if (await telegramAuthExists()) {
+      available.push("telegram");
+    }
+
+    // Always include wa-twilio if env vars present
+    try {
+      readEnv(defaultRuntime, "twilio");
+      available.push("wa-twilio");
+    } catch {
+      // Twilio not configured
+    }
+
+    return available;
+  }
+
+  // Validate each provider is authenticated
+  const validated: Provider[] = [];
+  for (const pref of prefs) {
+    if (pref === "wa-web" && (await webAuthExists())) {
+      validated.push("wa-web");
+    } else if (pref === "telegram") {
+      const { telegramAuthExists } = await import("../telegram/session.js");
+      if (await telegramAuthExists()) {
+        validated.push("telegram");
+      } else {
+        console.warn(`⚠️  telegram selected but not authenticated`);
+      }
+    } else if (pref === "wa-twilio") {
+      // Check Twilio env vars
+      try {
+        readEnv(defaultRuntime, "twilio");
+        validated.push("wa-twilio");
+      } catch {
+        console.warn(`⚠️  wa-twilio selected but not configured`);
+      }
+    }
+  }
+
+  return validated;
 }
