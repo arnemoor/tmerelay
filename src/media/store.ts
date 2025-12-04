@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createWriteStream } from "node:fs";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import { request } from "node:https";
 import os from "node:os";
@@ -8,7 +9,19 @@ import { pipeline } from "node:stream/promises";
 
 import { detectMime, extensionForMime } from "./mime.js";
 
-const MEDIA_DIR = path.join(os.homedir(), ".warelay", "media");
+// Prefer ~/.clawdis/media, fallback to ~/.warelay/media for compatibility
+const MEDIA_DIR_CLAWDIS = path.join(os.homedir(), ".clawdis", "media");
+const MEDIA_DIR_LEGACY = path.join(os.homedir(), ".warelay", "media");
+
+function resolveMediaDir(): string {
+  // Use CLAWDIS path if the main config directory exists, otherwise legacy
+  const clawdisConfigExists = fsSync.existsSync(
+    path.join(os.homedir(), ".clawdis"),
+  );
+  return clawdisConfigExists ? MEDIA_DIR_CLAWDIS : MEDIA_DIR_LEGACY;
+}
+
+const MEDIA_DIR = resolveMediaDir();
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 const DEFAULT_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
