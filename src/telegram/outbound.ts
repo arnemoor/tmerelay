@@ -49,7 +49,21 @@ export async function sendMediaMessage(
   if (media.buffer) {
     file = media.buffer;
   } else if (media.url) {
-    // Download URL to buffer
+    // Check content length before downloading to prevent OOM
+    const headResponse = await fetch(media.url, { method: "HEAD" });
+    const contentLength = headResponse.headers.get("content-length");
+    if (contentLength) {
+      const sizeBytes = Number.parseInt(contentLength, 10);
+      const maxSize = 2 * 1024 * 1024 * 1024; // 2GB
+      if (sizeBytes > maxSize) {
+        throw new Error(
+          `Media size ${(sizeBytes / 1024 / 1024).toFixed(1)}MB exceeds maximum ${maxSize / 1024 / 1024}MB. ` +
+            "Large files require streaming support (not yet implemented).",
+        );
+      }
+    }
+
+    // Download URL to buffer (only after size check)
     const response = await fetch(media.url);
     if (!response.ok) {
       throw new Error(

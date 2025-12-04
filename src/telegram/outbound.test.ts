@@ -36,7 +36,7 @@ describe("outbound", () => {
     };
 
     vi.mocked(utilsModule.resolveEntity).mockResolvedValue(mockEntity);
-    vi.mocked(utilsModule.extractUserId).mockReturnValue(12345);
+    vi.mocked(utilsModule.extractUserId).mockReturnValue("12345");
 
     vi.clearAllMocks();
   });
@@ -68,7 +68,7 @@ describe("outbound", () => {
         messageId: "999",
         status: "sent",
         providerMeta: {
-          userId: 12345,
+          userId: "12345",
         },
       });
     });
@@ -170,7 +170,7 @@ describe("outbound", () => {
         messageId: "999",
         status: "sent",
         providerMeta: {
-          userId: 12345,
+          userId: "12345",
         },
       });
     });
@@ -330,12 +330,27 @@ describe("outbound", () => {
       };
 
       const mockImageData = new Uint8Array([1, 2, 3, 4]);
-      const mockResponse = {
+
+      // Mock HEAD request for size check
+      const mockHeadResponse = {
+        headers: {
+          get: vi.fn((name: string) => {
+            if (name === "content-length") return "1024";
+            return null;
+          }),
+        },
+      };
+
+      // Mock GET request for actual download
+      const mockGetResponse = {
         ok: true,
         arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
       };
 
-      vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(mockHeadResponse as any) // HEAD request
+        .mockResolvedValueOnce(mockGetResponse as any); // GET request
+
       vi.mocked(mockClient.sendFile).mockResolvedValue(mockResult as any);
 
       const media: ProviderMedia = {
@@ -353,6 +368,10 @@ describe("outbound", () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         "https://example.com/image.jpg",
+        { method: "HEAD" },
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/image.jpg",
       );
       expect(mockClient.sendFile).toHaveBeenCalledWith(
         mockEntity,
@@ -364,12 +383,25 @@ describe("outbound", () => {
     });
 
     it("throws error when URL download fails", async () => {
-      const mockResponse = {
+      // Mock HEAD request success
+      const mockHeadResponse = {
+        headers: {
+          get: vi.fn((name: string) => {
+            if (name === "content-length") return "1024";
+            return null;
+          }),
+        },
+      };
+
+      // Mock GET request failure
+      const mockGetResponse = {
         ok: false,
         statusText: "Not Found",
       };
 
-      vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
+      vi.mocked(global.fetch)
+        .mockResolvedValueOnce(mockHeadResponse as any)
+        .mockResolvedValueOnce(mockGetResponse as any);
 
       const media: ProviderMedia = {
         type: "image",

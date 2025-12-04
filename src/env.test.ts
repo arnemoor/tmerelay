@@ -40,7 +40,8 @@ describe("env helpers", () => {
     const cfg = readEnv(runtime);
     expect(cfg.accountSid).toBe("AC123");
     expect(cfg.whatsappFrom).toBe("whatsapp:+1555");
-    if ("authToken" in cfg.auth) {
+    expect(cfg.auth).toBeDefined();
+    if (cfg.auth && "authToken" in cfg.auth) {
       expect(cfg.auth.authToken).toBe("token");
     } else {
       throw new Error("Expected auth token");
@@ -55,7 +56,8 @@ describe("env helpers", () => {
       TWILIO_API_SECRET: "secret",
     });
     const cfg = readEnv(runtime);
-    if ("apiKey" in cfg.auth && "apiSecret" in cfg.auth) {
+    expect(cfg.auth).toBeDefined();
+    if (cfg.auth && "apiKey" in cfg.auth && "apiSecret" in cfg.auth) {
       expect(cfg.auth.apiKey).toBe("key");
       expect(cfg.auth.apiSecret).toBe("secret");
     } else {
@@ -107,6 +109,10 @@ describe("env helpers", () => {
       const cfg = readEnv(runtime, "telegram");
       expect(cfg.telegram?.apiId).toBe(12345);
       expect(cfg.telegram?.apiHash).toBe("abcdef");
+      // Twilio fields should be undefined
+      expect(cfg.accountSid).toBeUndefined();
+      expect(cfg.whatsappFrom).toBeUndefined();
+      expect(cfg.auth).toBeUndefined();
     });
 
     it("telegram provider fails when only API_ID provided", () => {
@@ -137,7 +143,8 @@ describe("env helpers", () => {
       const cfg = readEnv(runtime, "twilio");
       expect(cfg.accountSid).toBe("AC123");
       expect(cfg.whatsappFrom).toBe("whatsapp:+1555");
-      if ("authToken" in cfg.auth) {
+      expect(cfg.auth).toBeDefined();
+      if (cfg.auth && "authToken" in cfg.auth) {
         expect(cfg.auth.authToken).toBe("token");
       }
     });
