@@ -5,6 +5,7 @@ import { sendCommand } from "../commands/send.js";
 import { sessionsCommand } from "../commands/sessions.js";
 import { statusCommand } from "../commands/status.js";
 import { telegramLoginCommand } from "../commands/telegram-login.js";
+import { logoutTelegram } from "../telegram/login.js";
 import { loadConfig } from "../config/config.js";
 import { danger, info, setVerbose } from "../globals.js";
 import { getResolvedLoggerSettings } from "../logging.js";
@@ -141,12 +142,35 @@ export function buildProgram() {
 
   program
     .command("logout")
-    .description("Clear cached WhatsApp Web credentials")
-    .action(async () => {
+    .description("Clear cached messaging account credentials (WhatsApp Web or Telegram)")
+    .option(
+      "--provider <provider>",
+      "Provider to logout from: 'web' (WhatsApp) or 'telegram'",
+      "web",
+    )
+    .action(async (opts) => {
+      const provider = String(opts.provider).toLowerCase();
+
+      if (provider !== "web" && provider !== "telegram") {
+        defaultRuntime.error(
+          danger(
+            `Invalid provider '${provider}'. Must be 'web' or 'telegram'.`,
+          ),
+        );
+        defaultRuntime.exit(1);
+        return;
+      }
+
       try {
-        await logoutWeb(defaultRuntime);
+        if (provider === "web") {
+          await logoutWeb(defaultRuntime);
+        } else {
+          await logoutTelegram(Boolean(opts.verbose));
+        }
       } catch (err) {
-        defaultRuntime.error(danger(`Logout failed: ${String(err)}`));
+        defaultRuntime.error(
+          danger(`${provider} logout failed: ${String(err)}`),
+        );
         defaultRuntime.exit(1);
       }
     });
