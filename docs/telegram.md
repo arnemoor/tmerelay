@@ -273,17 +273,17 @@ clawdis login --provider telegram
 
 ## Comparison with WhatsApp
 
-| Feature | WhatsApp Web (`web`) | WhatsApp Twilio (`twilio`) | Telegram (`telegram`) |
-|---------|----------------------|---------------------------|----------------------|
-| **Authentication** | QR code scan | API credentials | Phone + SMS + 2FA |
-| **Account Type** | Personal | Business | Personal |
-| **Protocol** | WebSocket (Baileys) | HTTP (Twilio API) | MTProto (GramJS) |
-| **Max file size** | 100 MB | 5 MB | 2 GB |
-| **Typing indicators** | Yes | Yes | Yes |
-| **Read receipts** | Yes | No | No |
-| **Delivery tracking** | Limited | Full | Limited |
-| **Group chats** | Yes | Yes | Planned |
-| **Cost** | Free | Pay per message | Free |
+| Feature | WhatsApp Web (`web`) | Telegram (`telegram`) |
+|---------|----------------------|----------------------|
+| **Authentication** | QR code scan | Phone + SMS + 2FA |
+| **Account Type** | Personal | Personal |
+| **Protocol** | WebSocket (Baileys) | MTProto (GramJS) |
+| **Max file size** | 100 MB | 2 GB |
+| **Typing indicators** | Yes | Yes |
+| **Read receipts** | Yes | No |
+| **Delivery tracking** | Limited | Limited |
+| **Group chats** | Yes | Planned |
+| **Cost** | Free | Free |
 
 **Note:** Telegram's MTProto API technically supports reactions, edits, and deletes, but these are not exposed via the Provider interface (requires peer context architecture changes).
 

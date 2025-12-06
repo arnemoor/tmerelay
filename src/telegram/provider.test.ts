@@ -99,7 +99,7 @@ describe("TelegramProvider", () => {
       vi.mocked(sessionModule.loadSession).mockResolvedValue(null);
 
       await expect(provider.initialize(config)).rejects.toThrow(
-        "No Telegram session found. Run: warelay login --provider telegram",
+        "No Telegram session found. Run: clawdis login --provider telegram",
       );
     });
 
