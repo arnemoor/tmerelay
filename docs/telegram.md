@@ -2,7 +2,7 @@
 
 ## Overview
 
-warelay now supports Telegram via the MTProto client library (GramJS), allowing you to use your personal Telegram account for automated messaging. This provides the same personal automation capabilities as WhatsApp Web, but for Telegram conversations.
+clawdis supports Telegram via the MTProto client library (GramJS), allowing you to use your personal Telegram account for automated messaging. This provides the same personal automation capabilities as WhatsApp Web, but for Telegram conversations.
 
 ## Setup
 
@@ -25,7 +25,7 @@ TELEGRAM_API_HASH=abcdef0123456789abcdef0123456789
 ### 3. Login
 
 ```bash
-warelay login --provider telegram
+clawdis login --provider telegram
 ```
 
 You'll be prompted for:
@@ -57,41 +57,16 @@ In `~/.clawdis/clawdis.json` (or `~/.warelay/warelay.json` for legacy):
 
 ## CLI Usage
 
-### Send Messages
-
-**Text message:**
-```bash
-warelay send --provider telegram --to @username --message "Hello from warelay"
-```
-
-**To a user by phone number:**
-```bash
-warelay send --provider telegram --to +15551234567 --message "Hi!"
-```
-
-**To a user by numeric ID:**
-```bash
-warelay send --provider telegram --to 123456789 --message "Hi!"
-```
-
-**With media:**
-```bash
-warelay send --provider telegram --to @username \
-  --message "Check this out" \
-  --media ./image.jpg
-```
-
-**With media URL:**
-```bash
-warelay send --provider telegram --to @username \
-  --message "Look at this" \
-  --media https://example.com/image.jpg
-```
-
 ### Start Relay (Auto-Reply)
 
+**Single provider (Telegram only):**
 ```bash
-warelay relay --provider telegram --verbose
+clawdis relay --providers telegram --verbose
+```
+
+**Multi-provider (WhatsApp + Telegram with shared sessions):**
+```bash
+clawdis relay --providers web,telegram --verbose
 ```
 
 The relay will:
@@ -101,18 +76,10 @@ The relay will:
 - Auto-reply based on your configuration
 - Persist sessions across conversations
 
-### Check Status
-
-```bash
-warelay status --provider telegram --limit 20 --lookback 240
-```
-
-Shows recent sent/received messages with delivery status.
-
 ### Logout
 
 ```bash
-warelay logout --provider telegram
+clawdis logout --provider telegram
 ```
 
 Removes the saved session from `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy).
@@ -187,7 +154,7 @@ Session files are stored encrypted at `~/.clawdis/telegram/session/` (or `~/.war
 
 **Solution:**
 ```bash
-warelay login --provider telegram
+clawdis login --provider telegram
 ```
 
 ### "Telegram not configured"
@@ -219,8 +186,8 @@ warelay login --provider telegram
 
 **Solution:**
 ```bash
-warelay logout --provider telegram
-warelay login --provider telegram
+clawdis logout --provider telegram
+clawdis login --provider telegram
 ```
 
 ### "FLOOD_WAIT" error
@@ -242,7 +209,7 @@ warelay login --provider telegram
 rm -rf ~/.clawdis/telegram/session/
 
 # Re-login
-warelay login --provider telegram
+clawdis login --provider telegram
 ```
 
 ## Configuration Examples
@@ -306,19 +273,16 @@ warelay login --provider telegram
 
 ## Comparison with WhatsApp
 
-| Feature | WhatsApp Web | WhatsApp Twilio | Telegram |
-|---------|--------------|-----------------|----------|
+| Feature | WhatsApp Web (`web`) | WhatsApp Twilio (`twilio`) | Telegram (`telegram`) |
+|---------|----------------------|---------------------------|----------------------|
 | **Authentication** | QR code scan | API credentials | Phone + SMS + 2FA |
 | **Account Type** | Personal | Business | Personal |
 | **Protocol** | WebSocket (Baileys) | HTTP (Twilio API) | MTProto (GramJS) |
 | **Max file size** | 100 MB | 5 MB | 2 GB |
-| **Typing indicators** | ✅ | ✅ | ✅ |
-| **Read receipts** | ✅ | ❌ | ❌ |
+| **Typing indicators** | Yes | Yes | Yes |
+| **Read receipts** | Yes | No | No |
 | **Delivery tracking** | Limited | Full | Limited |
-| **Group chats** | ✅ | ✅ | ⚠️ (planned) |
-| **Reactions** | ❌ | ❌ | ❌ |
-| **Edit messages** | ❌ | ❌ | ❌ |
-| **Delete messages** | ✅ | ✅ | ❌ |
+| **Group chats** | Yes | Yes | Planned |
 | **Cost** | Free | Pay per message | Free |
 
 **Note:** Telegram's MTProto API technically supports reactions, edits, and deletes, but these are not exposed via the Provider interface (requires peer context architecture changes).
@@ -354,7 +318,7 @@ cp -r ~/backups/clawdis-telegram-session/ ~/.clawdis/telegram/session/
 
 Run with `--verbose` to see detailed activity:
 ```bash
-warelay relay --provider telegram --verbose
+clawdis relay --providers telegram --verbose
 ```
 
 Logs include:
@@ -374,16 +338,26 @@ Logs include:
 
 ### Running Multiple Providers
 
-You can run WhatsApp and Telegram relays simultaneously:
+**Recommended: Multi-provider relay with shared sessions:**
+```bash
+clawdis relay --providers web,telegram --verbose
+```
+
+This runs both WhatsApp Web and Telegram in a single process with:
+- Shared conversation sessions across providers
+- Unified logging
+- Single process to manage
+
+**Alternative: Separate processes (legacy approach):**
 
 **Terminal 1 (WhatsApp):**
 ```bash
-tmux new -s warelay-whatsapp -d "warelay relay --provider wa-web --verbose"
+clawdis relay --verbose
 ```
 
 **Terminal 2 (Telegram):**
 ```bash
-tmux new -s warelay-telegram -d "warelay relay --provider telegram --verbose"
+clawdis relay --providers telegram --verbose
 ```
 
 ### Custom Session Storage
@@ -394,7 +368,7 @@ Session storage location is currently fixed at `~/.warelay/telegram/session/` (l
 
 Get detailed logs for debugging:
 ```bash
-warelay relay --provider telegram --verbose
+clawdis relay --providers telegram --verbose
 ```
 
 Output includes:
@@ -437,7 +411,7 @@ Media downloads use streaming to temporary files, eliminating memory buffering:
 Set `TELEGRAM_MAX_MEDIA_MB` to limit disk usage:
 ```bash
 # Limit to 500MB for production
-TELEGRAM_MAX_MEDIA_MB=500 warelay relay --provider telegram
+TELEGRAM_MAX_MEDIA_MB=500 clawdis relay --providers telegram
 ```
 
 **Note:** The limit is read at process startup. Changing the env var requires restarting the relay.
@@ -460,19 +434,15 @@ TELEGRAM_MAX_MEDIA_MB=500 warelay relay --provider telegram
 
 1. Keep your WhatsApp Web configuration
 2. Add Telegram credentials to `.env`
-3. Run `warelay login --provider telegram`
-4. Start Telegram relay alongside WhatsApp:
+3. Run `clawdis login --provider telegram`
+4. Start multi-provider relay:
    ```bash
-   # WhatsApp relay (terminal 1)
-   warelay relay --provider wa-web --verbose
-
-   # Telegram relay (terminal 2)
-   warelay relay --provider telegram --verbose
+   clawdis relay --providers web,telegram --verbose
    ```
 
 ### From WhatsApp Twilio
 
-Similar steps as above - both providers can coexist.
+Similar steps as above - all providers can coexist.
 
 ## Getting Help
 
@@ -480,7 +450,7 @@ If you encounter issues:
 
 1. **Check logs:** Run with `--verbose` flag
 2. **Verify credentials:** Ensure API ID/Hash are correct
-3. **Test login:** Try `warelay login --provider telegram` manually
+3. **Test login:** Try `clawdis login --provider telegram` manually
 4. **Check session:** Verify `~/.clawdis/telegram/session/` (or `~/.warelay/telegram/session/` for legacy) exists and is readable
 5. **Review config:** Ensure `~/.clawdis/clawdis.json` (or `~/.warelay/warelay.json` for legacy) is valid JSON5
 

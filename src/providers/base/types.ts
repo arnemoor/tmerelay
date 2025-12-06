@@ -181,7 +181,7 @@ export interface BaseProviderConfig {
  * Twilio WhatsApp provider configuration.
  */
 export interface TwilioProviderConfig extends BaseProviderConfig {
-  kind: "wa-twilio";
+  kind: "twilio";
   accountSid: string;
   authToken?: string;
   apiKey?: string;
@@ -194,7 +194,7 @@ export interface TwilioProviderConfig extends BaseProviderConfig {
  * WhatsApp Web provider configuration.
  */
 export interface WebProviderConfig extends BaseProviderConfig {
-  kind: "wa-web";
+  kind: "web";
   authDir?: string;
   printQr?: boolean;
   reconnect?: {

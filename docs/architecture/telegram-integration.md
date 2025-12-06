@@ -1,14 +1,14 @@
 # Telegram Integration Architecture
 
-## Executive Summary
+## Primer / tldr;
 
-This document provides architectural guidance for adding Telegram as a third messaging provider to warelay. Like the WhatsApp Web provider, Telegram uses the user's personal account via **MTProto client** for 1-on-1 conversation automation.
+This document provides architectural guidance for Telegram as a messaging provider in clawdis. Like the WhatsApp Web provider, Telegram uses the user's personal account via **MTProto client** for 1-on-1 conversation automation.
 
 **Key architecture decisions:**
 
 1. **MTProto client**: Users log in with their personal Telegram account (phone + 2FA)
 2. **Same security model**: `allowFrom` whitelist controls who can trigger auto-replies
-3. **Provider abstraction**: Unified interface across Twilio, Web, and Telegram providers
+3. **Provider abstraction**: Unified interface across `twilio`, `web`, and `telegram` providers
 4. **Session storage**: File-based session like WhatsApp Web (`~/.clawdis/telegram/session/`)
 
 ---
@@ -63,23 +63,23 @@ flowchart LR
 
 ### 1.2 Current Provider Type Definition
 
-The provider abstraction is currently a simple type union:
+The provider abstraction uses a formal interface and type union:
 
 ```typescript
-// src/utils.ts:L9
-export type Provider = "wa-twilio" | "wa-web";
+// src/utils.ts:L24
+export type Provider = "twilio" | "web" | "telegram";
 
-// src/utils.ts:L11-L14
+// src/utils.ts:L26-L30
 export function assertProvider(input: string): asserts input is Provider {
-  if (input !== "wa-twilio" && input !== "wa-web") {
-    throw new Error("Provider must be 'wa-twilio' or 'wa-web'");
+  if (input !== "twilio" && input !== "web" && input !== "telegram") {
+    throw new Error("Provider must be 'web', 'twilio', or 'telegram'");
   }
 }
 ```
 
-**Evidence:** `src/utils.ts:L9-L14`
+**Evidence:** `src/utils.ts:L24-L30`, `src/providers/base/types.ts:L18`
 
-**Interpretation:** There is no formal provider interface or contract. Each provider has its own module structure with different function signatures.
+**Interpretation:** The provider interface is defined in `src/providers/base/interface.ts` with capabilities, lifecycle, messaging, and authentication methods.
 
 ### 1.3 Provider Module Structure
 
@@ -124,24 +124,25 @@ flowchart TB
   WebAuth{Web Auth Exists?}
 
   Start --> Check
-  Check -->|wa-twilio| UseTwilio[Use WhatsApp Twilio]
-  Check -->|wa-web| UseWeb[Use WhatsApp Web]
+  Check -->|twilio| UseTwilio[Use WhatsApp Twilio]
+  Check -->|web| UseWeb[Use WhatsApp Web]
+  Check -->|telegram| UseTelegram[Use Telegram]
   Check -->|auto| Auto
   Auto --> WebAuth
   WebAuth -->|yes| UseWeb
   WebAuth -->|no| UseTwilio
 ```
 
-**Caption:** Provider auto-selection prioritizes Web when credentials exist.
+**Caption:** Provider selection based on `--provider` flag or auto-detection.
 
-**Evidence:** `src/web/session.ts:L220-L226`
+**Evidence:** `src/cli/program.ts:L105-L140`
 
 ```typescript
-export async function pickProvider(pref: Provider | "auto"): Promise<Provider> {
-  if (pref !== "auto") return pref;
-  const hasWeb = await webAuthExists();
-  if (hasWeb) return "wa-web";
-  return "wa-twilio";
+// login command validates provider
+if (provider !== "web" && provider !== "telegram") {
+  defaultRuntime.error(
+    danger(`Invalid provider '${provider}'. Must be 'web' or 'telegram'.`),
+  );
 }
 ```
 
@@ -173,7 +174,7 @@ sequenceDiagram
   participant S as WA Socket
   participant WA as WhatsApp
 
-  U->>C: warelay send --provider wa-web
+  U->>C: clawdis send --to +1555... --message "Hi"
   C->>S: createWaSocket()
   S->>WA: Connect (auth state)
   WA-->>S: Connection open
@@ -202,7 +203,7 @@ sequenceDiagram
   participant T as TelegramClient
   participant TG as Telegram
 
-  U->>C: warelay send --provider telegram
+  U->>C: clawdis send --provider telegram --to @user --message "Hi"
   C->>T: createTelegramClient()
   T->>TG: Connect (session)
   TG-->>T: Connection open
@@ -298,7 +299,7 @@ sequenceDiagram
   participant T as TelegramClient
   participant TG as Telegram
 
-  U->>C: warelay login --provider telegram
+  U->>C: clawdis login --provider telegram
   C->>T: createClient(apiId, apiHash)
   T->>TG: Connect
   C->>U: Enter phone number
@@ -403,12 +404,12 @@ flowchart TB
 
 ## 4. Provider Abstraction Improvements
 
-### 4.1 Proposed Provider Interface
+### 4.1 Provider Interface (Implemented)
 
 ```typescript
-// src/providers/types.ts (proposed)
+// src/providers/base/types.ts
 
-export type ProviderKind = "wa-twilio" | "wa-web" | "telegram";
+export type ProviderKind = "twilio" | "web" | "telegram";
 
 export interface ProviderMessage {
   id: string;
@@ -562,59 +563,45 @@ flowchart LR
 
 **Caption:** All provider messages normalized to common format before processing.
 
-### 4.4 Identifier Normalization
+### 4.4 Identifier Normalization (Implemented)
 
 ```typescript
-// src/providers/identifiers.ts (proposed)
+// src/utils.ts:L41-L66
 
-export interface NormalizedIdentifier {
-  provider: ProviderKind;
-  raw: string;            // Original identifier
-  normalized: string;     // Provider-specific normalized form
-  display: string;        // Human-readable form
-}
+export function normalizeAllowFromEntry(
+  entry: string,
+  provider: AllowFromProvider,
+): string {
+  const trimmed = entry.trim().toLowerCase();
+  if (!trimmed) return "";
 
-export function normalizeIdentifier(
-  provider: ProviderKind,
-  raw: string
-): NormalizedIdentifier {
-  switch (provider) {
-    case "wa-twilio":
-    case "wa-web":
-      // WhatsApp: E.164 phone number
-      const e164 = raw.replace(/^whatsapp:/, "").replace(/[^\d+]/g, "");
-      return {
-        provider,
-        raw,
-        normalized: e164.startsWith("+") ? e164 : `+${e164}`,
-        display: e164.startsWith("+") ? e164 : `+${e164}`,
-      };
+  if (provider === "telegram") {
+    // Strip telegram: prefix if present
+    const withoutPrefix = trimmed.startsWith(TELEGRAM_PREFIX)
+      ? trimmed.slice(TELEGRAM_PREFIX.length)
+      : trimmed;
 
-    case "telegram":
-      // Telegram: numeric user ID or @username
-      if (/^\d+$/.test(raw)) {
-        return {
-          provider,
-          raw,
-          normalized: raw,
-          display: `user:${raw}`,
-        };
-      }
-      if (raw.startsWith("@")) {
-        return {
-          provider,
-          raw,
-          normalized: raw.toLowerCase(),
-          display: raw,
-        };
-      }
-      return { provider, raw, normalized: raw, display: raw };
+    // Ensure @username format, then add telegram: prefix
+    const username = withoutPrefix.startsWith("@")
+      ? withoutPrefix
+      : withoutPrefix.match(/^\d+$/)
+        ? withoutPrefix // numeric ID, keep as-is
+        : `@${withoutPrefix}`;
 
-    default:
-      return { provider, raw, normalized: raw, display: raw };
+    return `${TELEGRAM_PREFIX}${username}`;
   }
+
+  // WhatsApp (both web and twilio) use E.164 phone numbers
+  return normalizeE164(entry);
 }
 ```
+
+**Evidence:** `src/utils.ts:L34-L66`
+
+**Key design:**
+- Telegram identifiers use `telegram:` prefix (e.g., `telegram:@username` or `telegram:123456`)
+- WhatsApp identifiers use E.164 format (e.g., `+15551234567`)
+- Identifiers are normalized for consistent matching in `allowFrom` config
 
 ---
 
@@ -683,7 +670,7 @@ export type WarelayConfig = {
   },
 
   // Web relay settings
-  "wa-web": {
+  "web": {
     "heartbeatSeconds": 300,
     "reconnect": {
       "maxAttempts": 10,
@@ -719,18 +706,18 @@ flowchart TB
   Flag{--provider flag?}
 
   Flag -->|telegram| CheckTG{Telegram session exists?}
-  Flag -->|wa-twilio| CheckTwilio{Twilio env set?}
-  Flag -->|wa-web| CheckWeb{WhatsApp Web auth exists?}
+  Flag -->|twilio| CheckTwilio{Twilio env set?}
+  Flag -->|web| CheckWeb{WhatsApp Web auth exists?}
   Flag -->|auto| AutoSelect
 
   CheckTG -->|yes| UseTelegram[Use Telegram]
-  CheckTG -->|no| Error[Error: Run warelay login --provider telegram]
+  CheckTG -->|no| Error[Error: Run clawdis login --provider telegram]
 
   CheckTwilio -->|yes| UseTwilio[Use WhatsApp Twilio]
   CheckTwilio -->|no| Error2[Error: Set Twilio env]
 
   CheckWeb -->|yes| UseWeb[Use WhatsApp Web]
-  CheckWeb -->|no| Error3[Error: Run warelay login]
+  CheckWeb -->|no| Error3[Error: Run clawdis login]
 
   AutoSelect --> WebAuth{Web auth exists?}
   WebAuth -->|yes| UseWeb
@@ -863,27 +850,28 @@ src/providers/telegram/
 
 ### 7.1 CLI Command Changes
 
-#### Current Commands (Unchanged)
+#### Current Commands (Unified CLI)
 
 ```bash
-# Send (add --provider telegram)
-warelay send --to <id> --message "text" --provider telegram
+# Login (provider defaults to "web" if not specified)
+clawdis login                          # WhatsApp Web login (QR code)
+clawdis login --provider telegram      # Telegram login (phone + SMS + 2FA)
 
-# Relay (add --provider telegram)
-warelay relay --provider telegram --verbose
-```
+# Logout
+clawdis logout                         # WhatsApp Web logout
+clawdis logout --provider telegram     # Telegram logout
 
-#### New Telegram-Specific Commands
+# Send (currently web-only via CLI, telegram via relay)
+clawdis send --to +15551234567 --message "Hi"
 
-```bash
-# Login with phone + code + 2FA
-warelay login --provider telegram
-# Interactive: prompts for phone, code, 2FA password
+# Relay (supports multi-provider mode)
+clawdis relay                                 # WhatsApp Web only
+clawdis relay --providers web,telegram        # Both providers with session sharing
 ```
 
 ### 7.2 Example Workflows
 
-#### Workflow 1: Send via Telegram
+#### Workflow 1: Telegram Setup and Login
 
 ```bash
 # One-time setup
@@ -891,27 +879,22 @@ export TELEGRAM_API_ID="12345678"
 export TELEGRAM_API_HASH="0123456789abcdef..."
 
 # Login (once)
-warelay login --provider telegram
+clawdis login --provider telegram
 # Enter phone: +15551234567
 # Enter code: 12345
 # Enter 2FA password: ********
-
-# Send message
-warelay send --provider telegram --to @john_doe --message "Hello from warelay!"
-
-# Send with media
-warelay send --provider telegram --to @john_doe --message "Check this" --media ./photo.jpg
+# Session saved to ~/.clawdis/telegram/session/
 ```
 
-#### Workflow 2: Telegram Relay Mode
+#### Workflow 2: Multi-Provider Relay Mode
 
 ```bash
-# Start relay (persistent connection)
-warelay relay --provider telegram --verbose
+# Start relay with both WhatsApp and Telegram
+clawdis relay --providers web,telegram --verbose
 
 # Output:
-# warelay 1.4.0 - Telegram @yourusername listening
-# logs: /tmp/warelay/warelay.log (level info)
+# clawdis X.Y.Z - listening (web, telegram)
+# logs: ~/.clawdis/logs/clawdis.log (level info)
 # Ready to receive messages!
 ```
 
@@ -919,21 +902,21 @@ warelay relay --provider telegram --verbose
 
 | Scenario | Provider | Command |
 |----------|----------|---------|
-| Personal WhatsApp | `wa-web` | `--provider wa-web` |
-| Business WhatsApp | `wa-twilio` | `--provider wa-twilio` |
+| Personal WhatsApp | `web` | `--provider web` (default) |
+| Business WhatsApp | `twilio` | `--provider twilio` |
 | Personal Telegram | `telegram` | `--provider telegram` |
-| Auto (prefer personal) | `auto` | `--provider auto` |
+| Multi-provider relay | N/A | `--providers web,telegram` |
 
 ### 7.4 Migration Guide for Existing Users
 
-1. **No changes required** for existing WhatsApp Twilio or WhatsApp Web users (legacy names `twilio` and `web` still work)
+1. **Provider naming**: Use `web`, `twilio`, and `telegram` (NOT `wa-web` or `wa-twilio`)
 2. **To add Telegram:**
    - Get API credentials from https://my.telegram.org/apps
    - Set `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` environment variables
-   - Run `warelay login --provider telegram`
-   - Use `--provider telegram` flag
-3. **Configuration file** is backward compatible
-4. **Auto mode** will include Telegram in priority chain
+   - Run `clawdis login --provider telegram`
+   - Run multi-provider relay: `clawdis relay --providers web,telegram`
+3. **Configuration file**: Uses `web` and `telegram` keys
+4. **Session sharing**: Multi-provider relay shares conversation sessions across providers
 
 ---
 
@@ -943,7 +926,7 @@ warelay relay --provider telegram --verbose
 
 **Status:** Accepted
 
-**Context:** warelay is a personal automation tool - a butler for the user's own account. Users want to automate their personal Telegram conversations, not run a bot.
+**Context:** clawdis is a personal automation tool - a butler for the user's own account. Users want to automate their personal Telegram conversations, not run a bot.
 
 **Decision:** Use MTProto client (GramJS) for personal account access.
 
@@ -953,6 +936,8 @@ warelay relay --provider telegram --verbose
 - Full access to personal DMs
 - Same `allowFrom` security model works
 - Requires phone + code + 2FA login
+
+**Evidence:** `src/telegram/login.ts:L14-L66`
 
 ### ADR-002: GramJS Library Selection
 
@@ -987,14 +972,17 @@ warelay relay --provider telegram --verbose
 - Easy to backup/restore
 - Clear separation between providers
 
+**Evidence:** `src/telegram/session.ts:L1-L50`
+
 ---
 
 ## Appendix A: File Evidence Index
 
 | Section | Files Referenced |
 |---------|-----------------|
-| Provider Types | `src/utils.ts:L9-L14`, `src/providers/provider.types.ts:L1-L2` |
-| Twilio Implementation | `src/twilio/send.ts`, `src/twilio/monitor.ts`, `src/twilio/client.ts` |
+| Provider Types | `src/utils.ts:L24-L30`, `src/providers/base/types.ts:L18` |
+| Provider Interface | `src/providers/base/interface.ts:L17-L120` |
+| Telegram Implementation | `src/telegram/*.ts` |
 | Web Implementation | `src/web/session.ts`, `src/web/outbound.ts`, `src/web/inbound.ts` |
 | CLI Commands | `src/cli/program.ts`, `src/commands/send.ts`, `src/commands/status.ts` |
 | Configuration | `src/config/config.ts`, `src/env.ts`, `.env.example` |
