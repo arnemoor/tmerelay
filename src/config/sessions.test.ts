@@ -22,4 +22,24 @@ describe("sessions", () => {
       "group:12345-678@g.us",
     );
   });
+
+  it("preserves telegram identifiers with username", () => {
+    expect(deriveSessionKey("per-sender", { From: "telegram:@alice" })).toBe(
+      "telegram:@alice",
+    );
+  });
+
+  it("preserves telegram identifiers with numeric ID", () => {
+    expect(deriveSessionKey("per-sender", { From: "telegram:123456789" })).toBe(
+      "telegram:123456789",
+    );
+  });
+
+  it("keeps different telegram users distinct", () => {
+    const alice = deriveSessionKey("per-sender", { From: "telegram:@alice" });
+    const bob = deriveSessionKey("per-sender", { From: "telegram:@bob" });
+    expect(alice).not.toBe(bob);
+    expect(alice).toBe("telegram:@alice");
+    expect(bob).toBe("telegram:@bob");
+  });
 });

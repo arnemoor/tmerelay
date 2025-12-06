@@ -53,7 +53,7 @@ export class TelegramProvider implements Provider {
     const session = await loadSession();
     if (!session) {
       throw new Error(
-        "No Telegram session found. Run: warelay login --provider telegram",
+        "No Telegram session found. Run: clawdis login --provider telegram",
       );
     }
 

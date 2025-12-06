@@ -67,7 +67,7 @@ export async function saveSessionStore(
 // Decide which session bucket to use (per-sender vs global).
 export function deriveSessionKey(scope: SessionScope, ctx: MsgContext) {
   if (scope === "global") return "global";
-  const from = ctx.From ? normalizeE164(ctx.From) : "";
+
   // Preserve group conversations as distinct buckets
   if (typeof ctx.From === "string" && ctx.From.includes("@g.us")) {
     return `group:${ctx.From}`;
@@ -75,5 +75,13 @@ export function deriveSessionKey(scope: SessionScope, ctx: MsgContext) {
   if (typeof ctx.From === "string" && ctx.From.startsWith("group:")) {
     return ctx.From;
   }
+
+  // For Telegram identifiers (telegram:@username or telegram:123456), preserve as-is
+  if (typeof ctx.From === "string" && ctx.From.startsWith("telegram:")) {
+    return ctx.From;
+  }
+
+  // For WhatsApp/phone numbers, normalize to E.164
+  const from = ctx.From ? normalizeE164(ctx.From) : "";
   return from || "unknown";
 }

@@ -104,14 +104,37 @@ export function buildProgram() {
 
   program
     .command("login")
-    .description("Link your personal WhatsApp via QR (web provider)")
+    .description("Link your messaging account (WhatsApp Web or Telegram)")
     .option("--verbose", "Verbose connection logs", false)
+    .option(
+      "--provider <provider>",
+      "Provider to login to: 'web' (WhatsApp) or 'telegram'",
+      "web",
+    )
     .action(async (opts) => {
       setVerbose(Boolean(opts.verbose));
+      const provider = String(opts.provider).toLowerCase();
+
+      if (provider !== "web" && provider !== "telegram") {
+        defaultRuntime.error(
+          danger(
+            `Invalid provider '${provider}'. Must be 'web' or 'telegram'.`,
+          ),
+        );
+        defaultRuntime.exit(1);
+        return;
+      }
+
       try {
-        await loginWeb(Boolean(opts.verbose));
+        if (provider === "web") {
+          await loginWeb(Boolean(opts.verbose));
+        } else {
+          await telegramLoginCommand(opts, defaultRuntime);
+        }
       } catch (err) {
-        defaultRuntime.error(danger(`Web login failed: ${String(err)}`));
+        defaultRuntime.error(
+          danger(`${provider} login failed: ${String(err)}`),
+        );
         defaultRuntime.exit(1);
       }
     });
