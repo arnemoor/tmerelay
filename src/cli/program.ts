@@ -4,6 +4,7 @@ import { agentCommand } from "../commands/agent.js";
 import { sendCommand } from "../commands/send.js";
 import { sessionsCommand } from "../commands/sessions.js";
 import { statusCommand } from "../commands/status.js";
+import { telegramLoginCommand } from "../commands/telegram-login.js";
 import { loadConfig } from "../config/config.js";
 import { danger, info, setVerbose } from "../globals.js";
 import { getResolvedLoggerSettings } from "../logging.js";
@@ -123,6 +124,20 @@ export function buildProgram() {
         await logoutWeb(defaultRuntime);
       } catch (err) {
         defaultRuntime.error(danger(`Logout failed: ${String(err)}`));
+        defaultRuntime.exit(1);
+      }
+    });
+
+  program
+    .command("telegram-login")
+    .description("Link your personal Telegram account")
+    .option("--verbose", "Verbose connection logs", false)
+    .action(async (opts) => {
+      setVerbose(Boolean(opts.verbose));
+      try {
+        await telegramLoginCommand(opts, defaultRuntime);
+      } catch (err) {
+        defaultRuntime.error(danger(`Telegram login failed: ${String(err)}`));
         defaultRuntime.exit(1);
       }
     });
@@ -298,7 +313,11 @@ Examples:
 
   program
     .command("relay")
-    .description("Auto-reply to inbound messages (web only)")
+    .description("Auto-reply to inbound messages (supports multiple providers)")
+    .option(
+      "--providers <providers>",
+      "Comma-separated list of providers (web,telegram). Enables cross-provider session sharing.",
+    )
     .option(
       "--web-heartbeat <seconds>",
       "Heartbeat interval for web relay health logs (seconds)",
@@ -322,8 +341,9 @@ Examples:
       "after",
       `
 Examples:
-  clawdis relay                     # uses your linked web session
-  clawdis relay --web-heartbeat 60  # override heartbeat interval
+  clawdis relay                                 # uses your linked web session
+  clawdis relay --providers web,telegram       # both WhatsApp & Telegram (cross-provider sessions!)
+  clawdis relay --web-heartbeat 60              # override heartbeat interval
   # Troubleshooting: docs/refactor/web-relay-troubleshooting.md
 `,
     )
@@ -331,6 +351,74 @@ Examples:
       setVerbose(Boolean(opts.verbose));
       const { file: logFile, level: logLevel } = getResolvedLoggerSettings();
       defaultRuntime.log(info(`logs: ${logFile} (level ${logLevel})`));
+
+      // Check if --providers is specified for multi-provider mode
+      const providersArg = opts.providers as string | undefined;
+      if (providersArg) {
+        const providers = providersArg.split(",").map((p) => p.trim());
+        const validProviders = ["web", "telegram"];
+        const invalid = providers.filter((p) => !validProviders.includes(p));
+        if (invalid.length > 0) {
+          defaultRuntime.error(
+            danger(
+              `Invalid provider(s): ${invalid.join(", ")}. Valid: ${validProviders.join(", ")}`,
+            ),
+          );
+          defaultRuntime.exit(1);
+        }
+
+        // Parse web tuning options
+        const webHeartbeat =
+          opts.webHeartbeat !== undefined
+            ? Number.parseInt(String(opts.webHeartbeat), 10)
+            : undefined;
+        const webRetries =
+          opts.webRetries !== undefined
+            ? Number.parseInt(String(opts.webRetries), 10)
+            : undefined;
+        const webRetryInitial =
+          opts.webRetryInitial !== undefined
+            ? Number.parseInt(String(opts.webRetryInitial), 10)
+            : undefined;
+        const webRetryMax =
+          opts.webRetryMax !== undefined
+            ? Number.parseInt(String(opts.webRetryMax), 10)
+            : undefined;
+        const heartbeatNow = Boolean(opts.heartbeatNow);
+
+        const webTuning: WebMonitorTuning = {};
+        if (webHeartbeat !== undefined)
+          webTuning.heartbeatSeconds = webHeartbeat;
+        if (heartbeatNow) webTuning.replyHeartbeatNow = true;
+        const reconnect: WebMonitorTuning["reconnect"] = {};
+        if (webRetries !== undefined) reconnect.maxAttempts = webRetries;
+        if (webRetryInitial !== undefined) reconnect.initialMs = webRetryInitial;
+        if (webRetryMax !== undefined) reconnect.maxMs = webRetryMax;
+        if (Object.keys(reconnect).length > 0) {
+          webTuning.reconnect = reconnect;
+        }
+
+        const cfg = loadConfig();
+        const deps = createDefaultDeps();
+
+        // Use multi-provider relay
+        const { runMultiProviderRelay } = await import("./multi-relay.js");
+        try {
+          await runMultiProviderRelay(providers as any, cfg, deps, {
+            verbose: Boolean(opts.verbose),
+            webTuning,
+            runtime: defaultRuntime,
+          });
+          return;
+        } catch (err) {
+          defaultRuntime.error(
+            danger(`Multi-provider relay failed: ${String(err)}`),
+          );
+          defaultRuntime.exit(1);
+        }
+      }
+
+      // Single provider mode (backwards compatible, defaults to web)
       const webHeartbeat =
         opts.webHeartbeat !== undefined
           ? Number.parseInt(String(opts.webHeartbeat), 10)

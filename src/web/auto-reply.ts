@@ -66,6 +66,7 @@ export type WebMonitorTuning = {
   replyHeartbeatMinutes?: number;
   replyHeartbeatNow?: boolean;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  suppressStartMessage?: boolean;
 };
 
 const formatDuration = (ms: number) =>

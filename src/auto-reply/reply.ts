@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-import type { MessageInstance } from "twilio/lib/rest/api/v2010/account/message.js";
 import { loadConfig, type WarelayConfig } from "../config/config.js";
 import {
   DEFAULT_IDLE_MINUTES,
@@ -15,8 +14,6 @@ import { triggerWarelayRestart } from "../infra/restart.js";
 import { ensureMediaHosted } from "../media/host.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import { defaultRuntime, type RuntimeEnv } from "../runtime.js";
-import type { TwilioRequester } from "../twilio/types.js";
-import { sendTypingIndicator } from "../twilio/typing.js";
 import {
   normalizeAllowFromEntry,
   normalizeE164,
@@ -656,7 +653,7 @@ export async function getReplyFromConfig(
         isNewSession,
         isFirstTurnInSession,
         systemSent,
-        sessionIntro,
+        // sessionIntro, // TODO: Pi RPC integration - SessionIntro not in CommandReplyParams
         timeoutMs,
         timeoutSeconds,
         commandRunner,
@@ -722,7 +719,10 @@ export async function getReplyFromConfig(
   return undefined;
 }
 
-type TwilioLikeClient = TwilioRequester & {
+// TODO: Pi RPC integration - Twilio-specific types removed
+// These functions are not used in Pi RPC architecture
+/*
+type TwilioLikeClient = any & {
   messages: {
     create: (opts: {
       from?: string;
@@ -734,7 +734,7 @@ type TwilioLikeClient = TwilioRequester & {
 
 export async function autoReplyIfConfigured(
   client: TwilioLikeClient,
-  message: MessageInstance,
+  message: any,
   configOverride?: WarelayConfig,
   runtime: RuntimeEnv = defaultRuntime,
 ): Promise<void> {
@@ -880,3 +880,4 @@ export async function autoReplyIfConfigured(
     }
   }
 }
+*/
