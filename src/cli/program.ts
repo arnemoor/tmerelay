@@ -4,8 +4,7 @@ import { agentCommand } from "../commands/agent.js";
 import { sendCommand } from "../commands/send.js";
 import { sessionsCommand } from "../commands/sessions.js";
 import { statusCommand } from "../commands/status.js";
-import { telegramLoginCommand } from "../commands/telegram-login.js";
-import { logoutTelegram } from "../telegram/login.js";
+import { logoutTelegram, loginTelegram } from "../telegram/login.js";
 import { loadConfig } from "../config/config.js";
 import { danger, info, setVerbose } from "../globals.js";
 import { getResolvedLoggerSettings } from "../logging.js";
@@ -130,7 +129,7 @@ export function buildProgram() {
         if (provider === "web") {
           await loginWeb(Boolean(opts.verbose));
         } else {
-          await telegramLoginCommand(opts, defaultRuntime);
+          await loginTelegram(Boolean(opts.verbose));
         }
       } catch (err) {
         defaultRuntime.error(
@@ -171,20 +170,6 @@ export function buildProgram() {
         defaultRuntime.error(
           danger(`${provider} logout failed: ${String(err)}`),
         );
-        defaultRuntime.exit(1);
-      }
-    });
-
-  program
-    .command("telegram-login")
-    .description("Link your personal Telegram account")
-    .option("--verbose", "Verbose connection logs", false)
-    .action(async (opts) => {
-      setVerbose(Boolean(opts.verbose));
-      try {
-        await telegramLoginCommand(opts, defaultRuntime);
-      } catch (err) {
-        defaultRuntime.error(danger(`Telegram login failed: ${String(err)}`));
         defaultRuntime.exit(1);
       }
     });
