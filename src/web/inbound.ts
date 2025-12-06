@@ -55,9 +55,14 @@ export type WebInboundMessage = {
 export async function monitorWebInbox(options: {
   verbose: boolean;
   onMessage: (msg: WebInboundMessage) => Promise<void>;
+  suppressStartMessage?: boolean;
 }) {
   const inboundLogger = getChildLogger({ module: "web-inbound" });
-  const sock = await createWaSocket(false, options.verbose);
+  const sock = await createWaSocket(
+    false,
+    options.verbose,
+    options.suppressStartMessage,
+  );
   await waitForWaConnection(sock);
   let onCloseResolve: ((reason: WebListenerCloseReason) => void) | null = null;
   const onClose = new Promise<WebListenerCloseReason>((resolve) => {
@@ -66,7 +71,9 @@ export async function monitorWebInbox(options: {
   try {
     // Advertise that the relay is online right after connecting.
     await sock.sendPresenceUpdate("available");
-    if (isVerbose()) logVerbose("Sent global 'available' presence on connect");
+    if (isVerbose() && !options.suppressStartMessage) {
+      logVerbose("Sent global 'available' presence on connect");
+    }
   } catch (err) {
     logVerbose(
       `Failed to send 'available' presence on connect: ${String(err)}`,

@@ -910,6 +910,7 @@ export async function monitorWebProvider(
 
     const listener = await (listenerFactory ?? monitorWebInbox)({
       verbose,
+      suppressStartMessage: tuning.suppressStartMessage,
       onMessage: async (msg) => {
         handledMessages += 1;
         lastMessageAt = Date.now();
@@ -1281,10 +1282,12 @@ export async function monitorWebProvider(
       }
     }
 
-    logInfo(
-      "📡 Listening for personal WhatsApp Web inbound messages. Leave this running; Ctrl+C to stop.",
-      runtime,
-    );
+    if (!tuning.suppressStartMessage) {
+      logInfo(
+        "📡 Listening for personal WhatsApp Web inbound messages. Leave this running; Ctrl+C to stop.",
+        runtime,
+      );
+    }
 
     if (!keepAlive) {
       await closeListener();

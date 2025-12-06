@@ -25,7 +25,11 @@ export const WA_WEB_AUTH_DIR = path.join(CONFIG_DIR, "credentials");
  * Create a Baileys socket backed by the multi-file auth store we keep on disk.
  * Consumers can opt into QR printing for interactive login flows.
  */
-export async function createWaSocket(printQr: boolean, verbose: boolean) {
+export async function createWaSocket(
+  printQr: boolean,
+  verbose: boolean,
+  suppressStartMessage = false,
+) {
   const logger = getChildLogger(
     { module: "baileys" },
     {
@@ -73,7 +77,7 @@ export async function createWaSocket(printQr: boolean, verbose: boolean) {
             );
           }
         }
-        if (connection === "open" && verbose) {
+        if (connection === "open" && verbose && !suppressStartMessage) {
           console.log(success("WhatsApp Web connected."));
         }
       } catch (err) {
